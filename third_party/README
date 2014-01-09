@@ -1,0 +1,16 @@
+j2objc
+
+    This contains compiled jar files from:
+
+    https://code.google.com/p/j2objc/
+
+    git commit: bb00c15b2f1e400228a9ad756f8c524ca67b81aa
+
+
+j2objcbuild.py
+
+    This is a script taken from:
+
+    https://github.com/shotvibe/minijobjc
+
+    git commit: 20e445a6f29ccc8d5e66a7b0fe534271cd27c424
