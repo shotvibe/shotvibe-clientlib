@@ -2,6 +2,7 @@
 
 import os
 import shlex
+import shutil
 import subprocess
 import sys
 
@@ -25,6 +26,7 @@ CLANG_FLAGS = [
 
 def main():
     translate_java_sources()
+    copy_objc_override_sources()
     (archs, arch_libs) = build_arch_libs()
     fat_lib = create_fat_lib(archs, arch_libs)
 
@@ -59,6 +61,29 @@ def translate_java_sources():
         touch(CODEGEN_TIMESTAMP_FILE)
     else:
         print("No changes")
+
+
+def copy_objc_override_sources():
+    print("Copying Objective-C Override Sources")
+
+    srcs_dir = "src/main/java"
+
+    any_updated = False
+
+    for root, dirs, files in os.walk(srcs_dir):
+        for file in files:
+            if file.endswith(".h") or file.endswith(".m"):
+                fullname = os.path.join(root, file)
+                target_name = os.path.join(OBJC_FILES_DIR, file)
+
+                if j2objcbuild.is_file_newer(fullname, target_name):
+                    print("Copying " + file)
+                    shutil.copyfile(fullname, target_name)
+                    any_updated = True
+
+    if any_updated:
+        # Update the timestamp of the tracking file
+        touch(CODEGEN_TIMESTAMP_FILE)
 
 
 def build_arch_libs():
