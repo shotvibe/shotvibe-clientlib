@@ -68,6 +68,7 @@ def copy_objc_override_sources():
 
     srcs_dir = "src/main/java"
 
+    found_files = []
     any_updated = False
 
     for root, dirs, files in os.walk(srcs_dir):
@@ -76,7 +77,10 @@ def copy_objc_override_sources():
                 fullname = os.path.join(root, file)
                 target_name = os.path.join(OBJC_FILES_DIR, file)
 
-                if j2objcbuild.is_file_newer(fullname, target_name):
+                found_files.append(target_name)
+
+                if j2objcbuild.is_file_newer(CODEGEN_TIMESTAMP_FILE, target_name) \
+                        or j2objcbuild.is_file_newer(fullname, target_name):
                     print("Copying " + file)
                     shutil.copyfile(fullname, target_name)
                     any_updated = True
@@ -84,6 +88,24 @@ def copy_objc_override_sources():
     if any_updated:
         # Update the timestamp of the tracking file
         touch(CODEGEN_TIMESTAMP_FILE)
+
+        codegen_stat = os.stat(CODEGEN_TIMESTAMP_FILE)
+
+        for f in found_files:
+            # We need the copied source files to have a modification time that
+            # is strictly greater than that of the CODEGEN_TIMESTAMP_FILE.
+            # Otherwise, during the next build, they will appear to be outdated
+            # (and will be copied again, which will trigger a full build).
+            #
+            # So we busy loop here until enough time has passed such that the
+            # modification time changes.
+            #
+            # Note: Mac OS X filesystem seems to only have second-level
+            # precision.
+            while True:
+                touch(f)
+                if os.stat(f).st_mtime > codegen_stat.st_mtime:
+                    break
 
 
 def build_arch_libs():
