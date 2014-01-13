@@ -172,6 +172,15 @@
 }
 
 
+- (id)initWithInitialArray:(NSMutableArray *)array
+{
+    if (self = [super init]) {
+        elems_ = array;
+    }
+    return self;
+}
+
+
 - (id)initWithJavaUtilCollection:(id<JavaUtilCollection>)c
 {
     if (self = [super init]) {
@@ -439,6 +448,12 @@
 - (NSUInteger)countByEnumeratingWithState:(NSFastEnumerationState *)state objects:(__unsafe_unretained id *)stackbuf count:(NSUInteger)len
 {
     return [elems_ countByEnumeratingWithState:state objects:stackbuf count:len];
+}
+
+
+- (NSMutableArray *)array
+{
+    return elems_;
 }
 
 

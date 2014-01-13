@@ -16,6 +16,7 @@
 
 - (id)init;
 - (id)initWithInt:(int)initialCapacity;
+- (id)initWithInitialArray:(NSMutableArray *)array;
 - (id)initWithJavaUtilCollection:(id<JavaUtilCollection>)c;
 - (void)addWithInt:(int)location
             withId:(id)object;
@@ -46,6 +47,7 @@
 - (BOOL)isEqual:(id)param0;
 - (NSUInteger)hash;
 - (void)copyAllFieldsTo:(SLArrayList *)other;
+- (NSMutableArray *)array;
 @end
 
 typedef SLArrayList ComShotvibeShotvibelibArrayList;
