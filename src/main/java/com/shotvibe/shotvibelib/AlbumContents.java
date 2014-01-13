@@ -18,11 +18,11 @@ public class AlbumContents extends AlbumBase {
         mMembers = members;
     }
 
-    public List<AlbumPhoto> getPhotos() {
+    public ArrayList<AlbumPhoto> getPhotos() {
         return mPhotos;
     }
 
-    public List<AlbumMember> getMembers() {
+    public ArrayList<AlbumMember> getMembers() {
         return mMembers;
     }
 

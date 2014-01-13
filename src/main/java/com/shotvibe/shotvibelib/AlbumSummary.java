@@ -16,7 +16,7 @@ public class AlbumSummary extends AlbumBase {
         mLatestPhotos = latestPhotos;
     }
 
-    public List<AlbumPhoto> getLatestPhotos() {
+    public ArrayList<AlbumPhoto> getLatestPhotos() {
         return mLatestPhotos;
     }
 
