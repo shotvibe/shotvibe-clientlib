@@ -1,7 +1,5 @@
 package com.shotvibe.shotvibelib;
 
-import java.util.List;
-
 public class AlbumSummary extends AlbumBase {
 
     public AlbumSummary(long id, String etag, String name, DateTime dateCreated,

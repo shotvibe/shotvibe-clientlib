@@ -1,7 +1,5 @@
 package com.shotvibe.shotvibelib;
 
-import java.util.List;
-
 public class AlbumContents extends AlbumBase {
 
     public AlbumContents(long id, String etag, String name, DateTime dateCreated, DateTime dateUpdated, long numNewPhotos, DateTime lastAccess, ArrayList<AlbumPhoto> photos, ArrayList<AlbumMember> members) {
