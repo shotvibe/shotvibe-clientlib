@@ -1,8 +1,53 @@
 package com.shotvibe.shotvibelib;
 
 public final class ShotVibeDB {
-    public ShotVibeDB(SQLConnection conn) {
+    private ShotVibeDB(SQLConnection conn) {
         mConn = conn;
+    }
+
+    public static final int DATABASE_VERSION = 1;
+
+    /**
+     * Should be called after populateNewDB or upgradeDB has been called (if one of them was necessary)
+     *
+     * @param conn
+     * @return
+     */
+    public static ShotVibeDB open(SQLConnection conn) {
+        if (conn == null) {
+            throw new IllegalArgumentException("conn cannot be null");
+        }
+
+        return new ShotVibeDB(conn);
+    }
+
+    /**
+     * Should be called from within a transaction
+     *
+     * @param conn
+     * @throws SQLException
+     */
+    public static void populateNewDB(SQLConnection conn) throws SQLException {
+        if (conn == null) {
+            throw new IllegalArgumentException("conn cannot be null");
+        }
+
+        conn.executeSQLScript("create.sql");
+    }
+
+    /**
+     * Should be called from within a transaction
+     *
+     * @param conn
+     * @param oldVersion
+     * @throws SQLException
+     */
+    public static void upgradeDB(SQLConnection conn, int oldVersion) throws SQLException {
+        if (conn == null) {
+            throw new IllegalArgumentException("conn cannot be null");
+        }
+
+        // TODO database migration
     }
 
     private SQLConnection mConn;
