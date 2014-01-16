@@ -132,4 +132,12 @@ public final class SQLValues implements Iterable<SQLValues.Val> {
     }
 
     private ArrayList<Val> mVals;
+
+    /*-[
+
+    - (NSUInteger)countByEnumeratingWithState:(NSFastEnumerationState *)state objects:(__unsafe_unretained id *)stackbuf count:(NSUInteger)len {
+        return [mVals_ countByEnumeratingWithState:state objects:stackbuf count:len];
+    }
+
+    ]-*/;
 }
