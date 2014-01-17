@@ -1,7 +1,76 @@
 #include "HashSet.h"
 #include "IOSObjectArray.h"
+#include "IOSClass.h"
 #include "java/util/Collection.h"
 #include "java/util/Iterator.h"
+#include "java/lang/IllegalStateException.h"
+#include "java/lang/NullPointerException.h"
+
+
+@interface SLHashSet_Iterator : NSObject < JavaUtilIterator >
+{
+    NSHashTable *hashTable_;
+    NSEnumerator *enumerator_;
+    id prev_;
+    id next_;
+}
+
+- (id)initWithHashTable:(NSHashTable *)hashTable;
+
+@end
+
+
+@implementation SLHashSet_Iterator
+
+
+- (id)initWithHashTable:(NSHashTable *)hashTable
+{
+    self = [super init];
+
+    if (self) {
+        hashTable_ = hashTable;
+        enumerator_ = [hashTable objectEnumerator];
+        prev_ = nil;
+        next_ = [enumerator_ nextObject];
+    }
+
+    return self;
+}
+
+
+- (BOOL)hasNext
+{
+    return next_ != nil;
+}
+
+
+- (id)next
+{
+    prev_ = next_;
+    next_ = [enumerator_ nextObject];
+    return prev_;
+}
+
+
+- (void)remove
+{
+    if (!prev_) {
+        @throw [[JavaLangIllegalStateException alloc] initWithNSString:@"next has not been called, or remove has already been called"];
+    }
+
+    [hashTable_ removeObject:prev_];
+
+    enumerator_ = [hashTable_ objectEnumerator];
+    prev_ = nil;
+
+    while (next_ != [enumerator_ nextObject]) {
+        // Nothing to do, just advance
+    }
+}
+
+
+@end
+
 
 @implementation SLHashSet
 {
@@ -104,6 +173,12 @@
 }
 
 
+- (id<JavaUtilIterator>)iterator
+{
+    return [[SLHashSet_Iterator alloc] initWithHashTable:table_];
+}
+
+
 - (BOOL)removeWithId:(id)object
 {
     BOOL alreadyExists = [table_ containsObject:object];
@@ -152,6 +227,45 @@
 - (int)size
 {
     return table_.count;
+}
+
+
+- (IOSObjectArray *)toArray
+{
+    IOSObjectArray *result = [[IOSObjectArray alloc] initWithLength:table_.count type:[IOSClass objectClass]];
+
+    NSUInteger i = 0;
+    for (NSObject *o in table_) {
+        [result replaceObjectAtIndex:i withObject:o];
+        i++;
+    }
+
+    return result;
+}
+
+
+- (IOSObjectArray *)toArrayWithNSObjectArray:(IOSObjectArray *)array
+{
+    if (!array) {
+        @throw [[JavaLangNullPointerException alloc] init];
+    }
+
+    if (array.count < table_.count) {
+        return [self toArray];
+    }
+
+    NSUInteger i = 0;
+    for (NSObject *o in table_) {
+        [array replaceObjectAtIndex:i withObject:o];
+        i++;
+    }
+
+    // According to the spec: Add a "null" element at the end of the array if there is room
+    if (array.count >= table_.count + 1) {
+        [array replaceObjectAtIndex:i withObject:nil];
+    }
+
+    return array;
 }
 
 
