@@ -113,4 +113,75 @@ public final class ShotVibeDB {
             cursor.close();
         }
     }
+
+    public void setAlbumList(ArrayList<AlbumSummary> albums) throws SQLException {
+        mConn.beginTransaction();
+        try {
+            // Keep track of all the new albumIds in an efficient data structure
+            HashSet<Long> albumIds = new HashSet<Long>();
+            for (AlbumSummary album : albums) {
+                albumIds.add(album.getId());
+
+                // First try updating an existing row, in order to not erase an existing etag value
+                mConn.update(""
+                        + "UPDATE album"
+                        + " SET album_id=?, name=?, last_updated=?, num_new_photos=?, last_access=?"
+                        + " WHERE album_id=?",
+                        SQLValues.create()
+                                .add(album.getId())
+                                .add(album.getName())
+                                .add(dateTimeToSQLValue(album.getDateUpdated()))
+                                .add(album.getNumNewPhotos())
+                                .addNullable(album.getLastAccess() == null ? null : dateTimeToSQLValue(album.getLastAccess()))
+                                .add(album.getId()));
+
+                if (mConn.changes() == 0) {
+                    // A row didn't exist for the album, this will insert a new row
+                    // (while also not failing in the case of a rare race condition
+                    // where a row actually was just now added -- if that actually
+                    // does happen then we will unfortunately overwrite the etag
+                    // with a null value, but that won't cause much harm, it will
+                    // just cause the album to be unnecessary refreshed one more time)
+
+                    mConn.update(""
+                            + "INSERT OR REPLACE INTO album (album_id, name, last_updated, num_new_photos, last_access)"
+                            + " VALUES (?, ?, ?, ?, ?)",
+                            SQLValues.create()
+                                    .add(album.getId())
+                                    .add(album.getName())
+                                    .add(dateTimeToSQLValue(album.getDateUpdated()))
+                                    .add(album.getNumNewPhotos())
+                                    .addNullable(album.getLastAccess() == null ? null : dateTimeToSQLValue(album.getLastAccess())));
+                }
+            }
+
+            // Delete any old rows in the database that are not in albums:
+            SQLCursor cursor = mConn.query(""
+                    + "SELECT album_id"
+                    + " FROM album");
+
+            try {
+                while (cursor.moveToNext()) {
+                    long id = cursor.getLong(0);
+                    if (!albumIds.contains(id)) {
+                        mConn.update(""
+                                + "DELETE FROM album"
+                                + " WHERE album_id=?",
+                                SQLValues.create()
+                                        .add(id));
+                    }
+                }
+            } finally {
+                cursor.close();
+            }
+
+            mConn.setTransactionSuccesful();
+        } finally {
+            mConn.endTransaction();
+        }
+    }
+
+    private static long dateTimeToSQLValue(DateTime dateTime) {
+        return dateTime.getTimeStamp();
+    }
 }
