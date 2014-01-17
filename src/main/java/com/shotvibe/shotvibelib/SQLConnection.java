@@ -16,6 +16,8 @@ public interface SQLConnection {
 
     void update(String query, SQLValues sqlValues) throws SQLException;
 
+    int changes();
+
     void executeSQLScript(String filename) throws SQLException;
 
     void clearDatabase() throws SQLException;
