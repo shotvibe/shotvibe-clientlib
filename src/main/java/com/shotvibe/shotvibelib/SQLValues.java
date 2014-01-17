@@ -122,6 +122,38 @@ public final class SQLValues implements Iterable<SQLValues.Val> {
         return this;
     }
 
+    public SQLValues addNullable(Integer nullableIntValue) {
+        if (nullableIntValue == null) {
+            return addNull();
+        } else {
+            return add(nullableIntValue.intValue());
+        }
+    }
+
+    public SQLValues addNullable(Long nullableLongValue) {
+        if (nullableLongValue == null) {
+            return addNull();
+        } else {
+            return add(nullableLongValue.longValue());
+        }
+    }
+
+    public SQLValues addNullable(Double nullableDoubleValue) {
+        if (nullableDoubleValue == null) {
+            return addNull();
+        } else {
+            return add(nullableDoubleValue.doubleValue());
+        }
+    }
+
+    public SQLValues addNullable(String nullableStringValue) {
+        if (nullableStringValue == null) {
+            return addNull();
+        } else {
+            return add(nullableStringValue);
+        }
+    }
+
     @Override
     public Iterator<Val> iterator() {
         return mVals.iterator();
