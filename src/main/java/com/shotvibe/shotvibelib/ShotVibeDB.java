@@ -62,7 +62,7 @@ public final class ShotVibeDB {
                 + " FROM album"
                 + " ORDER BY last_updated DESC");
 
-         try {
+        try {
             ArrayList<AlbumSummary> results = new ArrayList<AlbumSummary>();
             while (cursor.moveToNext()) {
                 long id = cursor.getLong(0);
