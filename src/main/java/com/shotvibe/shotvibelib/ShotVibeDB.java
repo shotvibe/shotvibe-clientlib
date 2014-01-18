@@ -84,6 +84,28 @@ public final class ShotVibeDB {
         }
     }
 
+    public HashMap<Long, String> getAlbumListEtagValues() throws SQLException {
+        SQLCursor cursor = mConn.query(""
+                + "SELECT album_id, last_etag"
+                + " FROM album");
+
+        try {
+            HashMap<Long, String> results = new HashMap<Long, String>();
+            while (cursor.moveToNext()) {
+                long id = cursor.getLong(0);
+
+                // etag may be NULL if the full album hasn't been loaded yet
+                if (!cursor.isNull(1)) {
+                    String last_etag = cursor.getString(1);
+                    results.put(id, last_etag);
+                }
+            }
+            return results;
+        } finally {
+            cursor.close();
+        }
+    }
+
     private ArrayList<AlbumPhoto> getLatestPhotos(long albumId, int numPhotos) throws SQLException {
         SQLCursor cursor = mConn.query(""
                 + "SELECT photo.photo_id, photo.url, photo.created, user.user_id, user.nickname, user.avatar_url"
