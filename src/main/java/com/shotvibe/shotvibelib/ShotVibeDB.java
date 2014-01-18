@@ -1,5 +1,7 @@
 package com.shotvibe.shotvibelib;
 
+import java.util.Map;
+
 public final class ShotVibeDB {
     private ShotVibeDB(SQLConnection conn) {
         mConn = conn;
@@ -202,6 +204,233 @@ public final class ShotVibeDB {
             mConn.endTransaction();
         }
     }
+
+    public AlbumContents getAlbumContents(long albumId) throws SQLException {
+        mConn.beginTransaction();
+        try {
+            SQLCursor cursor;
+            cursor = mConn.query(""
+                    + "SELECT name, last_updated, num_new_photos, last_access"
+                    + " FROM album"
+                    + " WHERE album_id=?",
+                    SQLValues.create()
+                            .add(albumId));
+
+            String albumName;
+            DateTime albumLastUpdated;
+            String albumEtag;
+            long albumNumNewPhotos;
+            DateTime albumLastAccess;
+
+            try {
+                if (!cursor.moveToNext()) {
+                    // No cached AlbumContents available
+                    return null;
+                }
+
+                albumName = cursor.getString(0);
+                albumLastUpdated = cursorGetDateTime(cursor, 1);
+                albumEtag = null;
+                albumNumNewPhotos = cursor.getLong(2);
+                albumLastAccess = cursor.isNull(3) ? null : cursorGetDateTime(cursor, 3);
+            } finally {
+                cursor.close();
+            }
+
+            cursor = mConn.query(""
+                    + "SELECT photo.photo_id, photo.url, photo.created, user.user_id, user.nickname, user.avatar_url"
+                    + " FROM photo"
+                    + " LEFT OUTER JOIN user"
+                    + " ON photo.author_id = user.user_id"
+                    + " WHERE photo.photo_album=?"
+                    + " ORDER BY photo.num ASC",
+                    SQLValues.create()
+                            .add(albumId));
+
+            ArrayList<AlbumPhoto> albumPhotos = new ArrayList<AlbumPhoto>();
+            try {
+                while (cursor.moveToNext()) {
+                    String photoId = cursor.getString(0);
+                    String photoUrl = cursor.getString(1);
+                    DateTime photoDateAdded = cursorGetDateTime(cursor, 2);
+                    long photoAuthorUserId = cursor.getLong(3);
+                    String photoAuthorNickname = cursor.getString(4);
+                    String photoAuthorAvatarUrl = cursor.getString(5);
+                    AlbumUser photoAuthor = new AlbumUser(photoAuthorUserId, photoAuthorNickname, photoAuthorAvatarUrl);
+                    albumPhotos.add(new AlbumPhoto(new AlbumServerPhoto(photoId, photoUrl, photoAuthor, photoDateAdded)));
+                }
+            } finally {
+                cursor.close();
+            }
+
+            cursor = mConn.query(""
+                    + "SELECT album_member.user_id, user.nickname, user.avatar_url"
+                    + " FROM album_member"
+                    + " LEFT OUTER JOIN user"
+                    + " ON album_member.user_id = user.user_id"
+                    + " WHERE album_member.album_id=?"
+                    + " ORDER BY user.nickname ASC",
+                    SQLValues.create()
+                            .add(albumId));
+
+            ArrayList<AlbumMember> albumMembers = new ArrayList<AlbumMember>();
+            try {
+                while (cursor.moveToNext()) {
+                    long memberId = cursor.getLong(0);
+                    String memberNickname = cursor.getString(1);
+                    String memberAvatarUrl = cursor.getString(2);
+                    AlbumUser user = new AlbumUser(memberId, memberNickname, memberAvatarUrl);
+                    albumMembers.add(new AlbumMember(user, null));
+                }
+            } finally {
+                cursor.close();
+            }
+
+            // TODO Add real date for "dateCreated"
+            DateTime dummyDateCreated = DateTime.ParseISO8601("2000-01-01T00:00:00.000Z");
+
+            mConn.setTransactionSuccesful();
+            return new AlbumContents(albumId, albumEtag, albumName, dummyDateCreated, albumLastUpdated, albumNumNewPhotos, albumLastAccess, albumPhotos, albumMembers);
+        } finally {
+            mConn.endTransaction();
+        }
+    }
+
+    /**
+     * @param albumId
+     * @param albumContents Must contain only photos of type AlbumServerPhoto, no AlbumUploadingPhotos allowed!
+     */
+    public void setAlbumContents(long albumId, AlbumContents albumContents) throws SQLException {
+        mConn.beginTransaction();
+        try {
+            mConn.update(""
+                    + "INSERT OR REPLACE INTO album (album_id, name, last_updated, last_etag, num_new_photos, last_access)"
+                    + " VALUES (?, ?, ?, ?, ?, ?)",
+                    SQLValues.create()
+                            .add(albumContents.getId())
+                            .add(albumContents.getName())
+                            .add(dateTimeToSQLValue(albumContents.getDateUpdated()))
+                            .add(albumContents.getEtag())
+                            .add(albumContents.getNumNewPhotos())
+                            .addNullable(albumContents.getLastAccess() == null ? null : dateTimeToSQLValue(albumContents.getLastAccess())));
+
+
+            // Will be filled with all the users from:
+            //  - The authors of all the photos
+            //  - The album member list
+            // And then will be written to the DB
+            HashMap<Long, AlbumUser> allUsers = new HashMap<Long, AlbumUser>();
+
+            // Keep track of all the new photoIds in an efficient data structure
+            HashSet<String> photoIds = new HashSet<String>();
+
+            int num = 0;
+            for (AlbumPhoto albumPhoto : albumContents.getPhotos()) {
+                AlbumServerPhoto photo = albumPhoto.getServerPhoto();
+                if (photo == null) {
+                    throw new IllegalArgumentException("albumContents is not allowed to contain an AlbumUploadingPhoto: " + albumPhoto.getUploadingPhoto().toString());
+                }
+
+                photoIds.add(photo.getId());
+
+                mConn.update(""
+                        + "INSERT OR REPLACE INTO photo (photo_album, num, photo_id, url, author_id, created)"
+                        + " VALUES (?, ?, ?, ?, ?, ?)",
+                        SQLValues.create()
+                                .add(albumId)
+                                .add(num++)
+                                .add(photo.getId())
+                                .add(photo.getUrl())
+                                .add(photo.getAuthor().getMemberId())
+                                .add(dateTimeToSQLValue(photo.getDateAdded())));
+
+                AlbumUser user = photo.getAuthor();
+                allUsers.put(user.getMemberId(), user);
+            }
+
+            // Delete any old rows in the database that are not in photIds:
+            SQLCursor photosCursor = mConn.query(""
+                    + "SELECT photo_id"
+                    + " FROM photo"
+                    + " WHERE photo_album=?",
+                    SQLValues.create()
+                            .add(albumId));
+
+            try {
+                while (photosCursor.moveToNext()) {
+                    String id = photosCursor.getString(0);
+                    if (!photoIds.contains(id)) {
+                        mConn.update(""
+                                + "DELETE FROM photo"
+                                + " WHERE photo_album=? AND photo_id=?",
+                                SQLValues.create()
+                                        .add(albumId)
+                                        .add(id));
+                    }
+                }
+            } finally {
+                photosCursor.close();
+            }
+
+            // Keep track of all the new memberIds in an efficient data structure
+            HashSet<Long> memberIds = new HashSet<Long>();
+
+            for (AlbumMember member : albumContents.getMembers()) {
+                AlbumUser user = member.getUser();
+
+                memberIds.add(user.getMemberId());
+
+                mConn.update(""
+                        + "INSERT OR REPLACE INTO album_member (album_id, user_id)"
+                        + " VALUES (?, ?)",
+                        SQLValues.create()
+                                .add(albumId)
+                                .add(user.getMemberId()));
+
+                allUsers.put(user.getMemberId(), user);
+            }
+
+            // Delete any old rows in the database that are not in memberIds:
+            SQLCursor membersCursor = mConn.query(""
+                    + "SELECT user_id"
+                    + " FROM album_member"
+                    + " WHERE album_member.album_id=?",
+                    SQLValues.create()
+                            .add(albumId));
+            try {
+                while (membersCursor.moveToNext()) {
+                    long id = membersCursor.getLong(0);
+                    if (!memberIds.contains(id)) {
+                        mConn.update(""
+                                + "DELETE FROM album_member"
+                                + " WHERE album_member.album_id=? AND user_id=?",
+                                SQLValues.create()
+                                        .add(albumId)
+                                        .add(id));
+                    }
+                }
+            } finally {
+                membersCursor.close();
+            }
+
+            for (Map.Entry<Long, AlbumUser> entry : allUsers.entrySet()) {
+                AlbumUser user = entry.getValue();
+
+                mConn.update(""
+                        + "INSERT OR REPLACE INTO user (user_id, nickname, avatar_url)"
+                        + "VALUES (?, ?, ?)",
+                        SQLValues.create()
+                                .add(user.getMemberId())
+                                .add(user.getMemberNickname())
+                                .add(user.getMemberAvatarUrl()));
+            }
+
+            mConn.setTransactionSuccesful();
+        } finally {
+            mConn.endTransaction();
+        }
+    }
+
 
     private static long dateTimeToSQLValue(DateTime dateTime) {
         return dateTime.getTimeStamp();
