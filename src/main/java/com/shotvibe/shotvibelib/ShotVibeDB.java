@@ -431,6 +431,22 @@ public final class ShotVibeDB {
         }
     }
 
+    public void setAlbumLastAccess(long albumId, DateTime lastAccess) throws SQLException {
+        mConn.beginTransaction();
+        try {
+            mConn.update(""
+                    + "UPDATE album"
+                    + " SET num_new_photos=0, last_access=?"
+                    + " WHERE album_id=?",
+                    SQLValues.create()
+                            .add(dateTimeToSQLValue(lastAccess))
+                            .add(albumId));
+
+            mConn.setTransactionSuccesful();
+        } finally {
+            mConn.endTransaction();
+        }
+    }
 
     private static long dateTimeToSQLValue(DateTime dateTime) {
         return dateTime.getTimeStamp();
