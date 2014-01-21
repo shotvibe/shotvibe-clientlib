@@ -57,7 +57,13 @@ def build(j2objc_exe, j2objc_opts, input_dir, output_dir, no_package_directories
             target_file_h = os.path.join(output_dir, os.path.basename(target_file_h))
             target_file_m = os.path.join(output_dir, os.path.basename(target_file_h))
 
-        if is_file_newer(source_file, target_file_h) \
+        source_file_no_ext = os.path.splitext(source_file)[0]
+        objc_override_exists = os.path.isfile(source_file_no_ext + ".h") \
+                and os.path.isfile(source_file_no_ext + ".m")
+
+        if objc_override_exists:
+            print("Skipping due to Objective-C Override: " + source_file)
+        elif is_file_newer(source_file, target_file_h) \
                 or is_file_newer(source_file, target_file_m):
             newer_source_files.append(source_file)
 
