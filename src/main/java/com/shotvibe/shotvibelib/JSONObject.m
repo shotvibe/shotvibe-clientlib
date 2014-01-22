@@ -94,7 +94,12 @@ static inline NSNumber * toNumber(id value)
 
 - (BOOL)isNullWithNSString:(NSString *)key
 {
-    return [self getValue:key] == [NSNull null];
+    id val = [self getValue:key];
+    if (!val) {
+        @throw [[SLJSONException alloc] initWithNSString:[NSString stringWithFormat:@"Key \"%@\" does not exist in %@", key, dict_]];
+    }
+
+    return val == [NSNull null];
 }
 
 
