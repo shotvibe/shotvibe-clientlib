@@ -399,4 +399,19 @@ public class ShotVibeAPI {
             throw new APIException(e);
         }
     }
+
+    public void markAlbumAsViewed(long albumId, DateTime lastAccess) throws APIException {
+        try {
+            JSONObject data = new JSONObject();
+            data.put("timestamp", lastAccess.formatISO8601());
+
+            HTTPResponse response = sendRequest("POST", "/albums/" + albumId + "/view/", data);
+
+            if (response.isError()) {
+                throw APIException.ErrorStatusCodeException(response);
+            }
+        } catch (HTTPException e) {
+            throw new APIException(e);
+        }
+    }
 }
