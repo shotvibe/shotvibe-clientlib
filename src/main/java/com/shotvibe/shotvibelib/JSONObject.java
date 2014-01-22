@@ -8,6 +8,10 @@ public final class JSONObject {
         mObj = new org.json.JSONObject();
     }
 
+    public boolean has(String key) {
+        return mObj.has(key);
+    }
+
     public boolean isNull(String key) throws JSONException {
         if (key == null) {
             throw new IllegalArgumentException("key cannot be null");
