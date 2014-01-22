@@ -242,6 +242,16 @@ public final class JSONObject {
     }
 
     /**
+     * Returns JSON text, in compact format (no whitespace)
+     *
+     * @return JSON text
+     */
+    @Override
+    public String toString() {
+        return mObj.toString();
+    }
+
+    /**
      * Package Level visibility. Only needs to be called from JSONArray
      *
      * @param obj

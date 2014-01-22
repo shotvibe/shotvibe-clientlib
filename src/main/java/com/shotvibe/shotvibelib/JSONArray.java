@@ -149,6 +149,16 @@ public class JSONArray {
     }
 
     /**
+     * Returns JSON text, in compact format (no whitespace)
+     *
+     * @return JSON text
+     */
+    @Override
+    public String toString() {
+        return mArray.toString();
+    }
+
+    /**
      * Package Level visibility. Only needs to be called from JSONObject
      *
      * @param array
