@@ -1,5 +1,6 @@
 package com.shotvibe.shotvibelib;
 
+import java.util.List;
 import java.util.Map;
 
 public class ShotVibeAPI {
@@ -285,6 +286,113 @@ public class ShotVibeAPI {
             JSONObject json = response.bodyAsJSONObject();
 
             return parseAlbumContents(json, etagValue);
+        } catch (HTTPException e) {
+            throw new APIException(e);
+        } catch (JSONException e) {
+            throw new APIException(e);
+        }
+    }
+
+    public static class MemberAddRequest {
+        public MemberAddRequest(long userId) {
+            mUserId = userId;
+            mNickname = null;
+            mPhoneNumber = null;
+        }
+
+        public MemberAddRequest(String nickname, String phoneNumber) {
+            mNickname = nickname;
+            mPhoneNumber = phoneNumber;
+        }
+
+        public boolean isUserIdRequest() {
+            return mNickname == null;
+        }
+
+        public long getUserId() {
+            if (!isUserIdRequest()) {
+                throw new IllegalArgumentException("cannot getUserId for non isUserIdRequest request");
+            }
+            return mUserId;
+        }
+
+        public String getNickname() {
+            if (isUserIdRequest()) {
+                throw new IllegalArgumentException("cannot getNickname for isUserIdRequest request");
+            }
+            return mNickname;
+        }
+
+        public String getPhoneNumber() {
+            if (isUserIdRequest()) {
+                throw new IllegalArgumentException("cannot getPhoneNumber for isUserIdRequest request");
+            }
+            return mPhoneNumber;
+        }
+
+        private long mUserId;
+        private String mNickname;
+        private String mPhoneNumber;
+    }
+
+    public static class MemberAddFailure {
+        public MemberAddFailure(MemberAddRequest memberAddRequest) {
+            mMemberAddRequest = memberAddRequest;
+        }
+
+        public MemberAddRequest getMemberAddRequest() {
+            return mMemberAddRequest;
+        }
+
+        private MemberAddRequest mMemberAddRequest;
+
+        // TODO Add Failure reason enum
+    }
+
+    public ArrayList<MemberAddFailure> albumAddMembers(long albumId, List<MemberAddRequest> memberAddRequests, String defaultCountry) throws APIException {
+        if (memberAddRequests.isEmpty()) {
+            throw new IllegalArgumentException("memberAddRequests cannot be empty");
+        }
+
+        try {
+            JSONObject requestBody = new JSONObject();
+
+            JSONArray membersArray = new JSONArray();
+
+            for (MemberAddRequest memberAddRequest : memberAddRequests) {
+                if (memberAddRequest.isUserIdRequest()) {
+                    JSONObject memberObj = new JSONObject();
+                    memberObj.put("user_id", memberAddRequest.getUserId());
+                    membersArray.put(memberObj);
+                } else {
+                    JSONObject memberObj = new JSONObject();
+                    memberObj.put("contact_nickname", memberAddRequest.getNickname());
+                    memberObj.put("phone_number", memberAddRequest.getPhoneNumber());
+                    memberObj.put("default_country", defaultCountry);
+                    membersArray.put(memberObj);
+                }
+            }
+
+            requestBody.put("members", membersArray);
+
+            HTTPResponse response = sendRequest("POST", "/albums/" + albumId + "/members/", requestBody);
+
+            if (response.isError()) {
+                throw APIException.ErrorStatusCodeException(response);
+            }
+
+            JSONArray responseJson = response.bodyAsJSONArray();
+
+            ArrayList<MemberAddFailure> result = new ArrayList<MemberAddFailure>();
+            for (int i = 0; i < responseJson.length(); ++i) {
+                JSONObject obj = responseJson.getJSONObject(i);
+                if (!obj.getBoolean("success")) {
+                    MemberAddFailure elem = new MemberAddFailure(memberAddRequests.get(i));
+                    result.add(elem);
+                }
+            }
+
+            return result;
         } catch (HTTPException e) {
             throw new APIException(e);
         } catch (JSONException e) {
