@@ -33,7 +33,7 @@ public abstract class HTTPResponse {
     /**
      * Get HTTP Header
      *
-     * @param headerName Name of the Header
+     * @param headerName Name of the Header. Must be in all lowercase
      * @return The value of the header, or null if doesn't exist
      */
     public abstract String getHeaderValue(String headerName);
