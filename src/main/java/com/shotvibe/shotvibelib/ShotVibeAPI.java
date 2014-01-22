@@ -426,4 +426,28 @@ public class ShotVibeAPI {
             throw new APIException(e);
         }
     }
+
+    public void deletePhotos(Iterable<String> photoIds) throws APIException {
+        try {
+            JSONObject requestBody = new JSONObject();
+
+            JSONArray photosArray = new JSONArray();
+
+            for (String photoId : photoIds) {
+                JSONObject memberObj = new JSONObject();
+                memberObj.put("photo_id", photoId);
+                photosArray.put(memberObj);
+            }
+
+            requestBody.put("photos", photosArray);
+
+            HTTPResponse response = sendRequest("POST", "/photos/delete/", requestBody);
+
+            if (response.isError()) {
+                throw APIException.ErrorStatusCodeException(response);
+            }
+        } catch (HTTPException e) {
+            throw new APIException(e);
+        }
+    }
 }
