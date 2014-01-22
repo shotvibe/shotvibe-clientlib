@@ -12,6 +12,7 @@
 }
 
 - (id)init;
+- (BOOL)hasWithNSString:(NSString *)key;
 - (BOOL)isNullWithNSString:(NSString *)key;
 - (BOOL)getBooleanWithNSString:(NSString *)key;
 - (double)getDoubleWithNSString:(NSString *)key;

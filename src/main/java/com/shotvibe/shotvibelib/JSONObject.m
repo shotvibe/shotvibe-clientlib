@@ -86,6 +86,12 @@ static inline NSNumber * toNumber(id value)
 }
 
 
+- (BOOL)hasWithNSString:(NSString *)key
+{
+    return [self getValue:key] != nil;
+}
+
+
 - (BOOL)isNullWithNSString:(NSString *)key
 {
     return [self getValue:key] == [NSNull null];
