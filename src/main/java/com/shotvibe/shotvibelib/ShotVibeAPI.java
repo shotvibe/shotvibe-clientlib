@@ -414,4 +414,16 @@ public class ShotVibeAPI {
             throw new APIException(e);
         }
     }
+
+    public void leaveAlbum(long albumId) throws APIException {
+        try {
+            HTTPResponse response = sendRequest("POST", "/albums/" + albumId + "/leave/");
+
+            if (response.isError()) {
+                throw APIException.ErrorStatusCodeException(response);
+            }
+        } catch (HTTPException e) {
+            throw new APIException(e);
+        }
+    }
 }
