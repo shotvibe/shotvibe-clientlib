@@ -176,7 +176,6 @@ public class PhoneContactsManager implements DevicePhoneContactsLib.DeviceAddres
             try {
                 results = mShotVibeAPI.queryPhoneNumbers(toQuery, mShotVibeAPI.getAuthData().getDefaultCountryCode());
             } catch (APIException e) {
-                e.printStackTrace();
                 // TODO queue for retry
                 return;
             }
