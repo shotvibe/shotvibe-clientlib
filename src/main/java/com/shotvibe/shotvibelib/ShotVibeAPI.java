@@ -26,6 +26,10 @@ public class ShotVibeAPI {
         mJsonRequestHeaders.put("Authorization", "Token " + mAuthData.getAuthToken());
     }
 
+    public AuthData getAuthData() {
+        return mAuthData;
+    }
+
     private static DateTime parseDate(JSONObject obj, String field) throws JSONException {
         String input = obj.getString(field);
         DateTime result = DateTime.ParseISO8601(input);
@@ -447,6 +451,70 @@ public class ShotVibeAPI {
                 throw APIException.ErrorStatusCodeException(response);
             }
         } catch (HTTPException e) {
+            throw new APIException(e);
+        }
+    }
+
+    public ArrayList<PhoneContactServerResult> queryPhoneNumbers(ArrayList<PhoneContact> phoneContacts, String defaultCountry) throws APIException {
+        try {
+            JSONArray phoneNumbers = new JSONArray();
+            for (PhoneContact p : phoneContacts) {
+                JSONObject entry = new JSONObject();
+                entry.put("phone_number", p.getPhoneNumber());
+                entry.put("contact_nickname", p.getFullName());
+                phoneNumbers.put(entry);
+            }
+
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("default_country", defaultCountry);
+            requestBody.put("phone_numbers", phoneNumbers);
+
+            HTTPResponse response = sendRequest("POST", "/query_phone_numbers/", requestBody);
+
+            if (response.isError()) {
+                throw APIException.ErrorStatusCodeException(response);
+            }
+
+            ArrayList<PhoneContactServerResult> results = new ArrayList<PhoneContactServerResult>();
+            JSONObject responseObj = response.bodyAsJSONObject();
+            JSONArray phoneNumberDetails = responseObj.getJSONArray("phone_number_details");
+            for (int i = 0; i < phoneNumberDetails.length(); ++i) {
+                JSONObject obj = phoneNumberDetails.getJSONObject(i);
+                String phoneTypeStr = obj.getString("phone_type");
+                PhoneContactServerResult.PhoneType phoneType;
+                if (phoneTypeStr.equals("invalid")) {
+                    phoneType = PhoneContactServerResult.PhoneType.INVALID;
+                } else if (phoneTypeStr.equals("mobile")) {
+                    phoneType = PhoneContactServerResult.PhoneType.MOBILE;
+                } else if (phoneTypeStr.equals("landline")) {
+                    phoneType = PhoneContactServerResult.PhoneType.LANDLINE;
+                } else {
+                    throw new JSONException("Invalid `phone_type` value: " + phoneTypeStr);
+                }
+
+                PhoneContact inputPhoneContact = phoneContacts.get(i);
+
+                PhoneContactServerResult serverResult;
+                if (phoneType != PhoneContactServerResult.PhoneType.MOBILE) {
+                    serverResult = PhoneContactServerResult.createNonMobileResult(inputPhoneContact, phoneType);
+                } else {
+                    Long userId;
+                    if (obj.isNull("user_id")) {
+                        userId = null;
+                    } else {
+                        userId = obj.getLong("user_id");
+                    }
+                    String avatarUrl = obj.getString("avatar_url");
+                    String canonicalPhoneNumber = obj.getString("phone_number");
+                    serverResult = PhoneContactServerResult.createMobileResult(inputPhoneContact, userId, avatarUrl, canonicalPhoneNumber);
+                }
+                results.add(serverResult);
+            }
+
+            return results;
+        } catch (HTTPException e) {
+            throw new APIException(e);
+        } catch (JSONException e) {
             throw new APIException(e);
         }
     }
