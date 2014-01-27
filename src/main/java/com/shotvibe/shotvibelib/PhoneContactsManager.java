@@ -20,7 +20,7 @@ public class PhoneContactsManager implements DevicePhoneContactsLib.DeviceAddres
         mListener = null;
 
         mCurrentAddressBook = null;
-        mCachedContacts = new ArrayList<PhoneContactServerResult>();
+        mCachedContacts = new HashMap<PhoneContact, PhoneContactServerResult>();
     }
 
     private final DevicePhoneContactsLib mDevicePhoneContactsLib;
@@ -49,17 +49,10 @@ public class PhoneContactsManager implements DevicePhoneContactsLib.DeviceAddres
 
     // Must be called from inside a synchronized (mCachedContacts) block
     private PhoneContactServerResult findCachedServerResult(PhoneContact contact) {
-        for (PhoneContactServerResult serverResult : mCachedContacts) {
-            if (contact.equals(serverResult.getPhoneContact())) {
-                return serverResult;
-            }
-        }
-
-        // Not found
-        return null;
+        return mCachedContacts.get(contact);
     }
 
-    private final ArrayList<PhoneContactServerResult> mCachedContacts;
+    private final HashMap<PhoneContact, PhoneContactServerResult> mCachedContacts;
 
     /**
      * Must be called from the main thread
@@ -192,16 +185,7 @@ public class PhoneContactsManager implements DevicePhoneContactsLib.DeviceAddres
 
     // Must be called within a synchronized (mCachedContacts) block
     private void updatePhoneContactServerResult(PhoneContactServerResult result) {
-        for (int i = 0; i < mCachedContacts.size(); ++i) {
-            PhoneContactServerResult c = mCachedContacts.get(i);
-
-            if (result.getPhoneContact().equals(c.getPhoneContact())) {
-                mCachedContacts.set(i, result);
-                return;
-            }
-        }
-
-        mCachedContacts.add(result);
+        mCachedContacts.put(result.getPhoneContact(), result);
     }
 
     private abstract static class TriggerableAction {
