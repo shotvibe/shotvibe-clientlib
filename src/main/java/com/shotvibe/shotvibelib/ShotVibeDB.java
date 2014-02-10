@@ -7,7 +7,7 @@ public final class ShotVibeDB {
         mConn = conn;
     }
 
-    public static final int DATABASE_VERSION = 1;
+    public static final int DATABASE_VERSION = 2;
 
     /**
      * Should be called after populateNewDB or upgradeDB has been called (if one of them was necessary)
