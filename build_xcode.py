@@ -161,7 +161,7 @@ def compile_arch_lib(arch, output_file):
     CLANG = subprocess.check_output(["xcodebuild", "-find", "clang"]).rstrip()
     LIBTOOL = subprocess.check_output(["xcodebuild", "-find", "libtool"]).rstrip()
 
-    sysroot = get_xcode_environ("SDKROOT")
+    sysroot = os.environ.get("SDKROOT")
 
     header_search_paths_str = get_xcode_environ("HEADER_SEARCH_PATHS")
     header_search_paths = shlex.split(header_search_paths_str)
@@ -175,7 +175,8 @@ def compile_arch_lib(arch, output_file):
 
         command += ["-arch", arch]
 
-        command += ["-isysroot", sysroot]
+        if sysroot:
+            command += ["-isysroot", sysroot]
 
         objc_abi_version = os.environ.get("OBJC_ABI_VERSION")
         if objc_abi_version:
