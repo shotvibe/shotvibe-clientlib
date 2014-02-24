@@ -449,6 +449,6 @@ public final class ShotVibeDB {
     }
 
     private static long dateTimeToSQLValue(DateTime dateTime) {
-        return dateTime.getTimeStamp();
+        return dateTime == null ? null : dateTime.getTimeStamp();
     }
 }
