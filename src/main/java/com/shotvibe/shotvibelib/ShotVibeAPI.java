@@ -407,7 +407,11 @@ public class ShotVibeAPI {
     public void markAlbumAsViewed(long albumId, DateTime lastAccess) throws APIException {
         try {
             JSONObject data = new JSONObject();
-            data.put("timestamp", lastAccess.formatISO8601());
+            if (lastAccess == null) {
+                data.putNull("timestamp");
+            } else {
+                data.put("timestamp", lastAccess.formatISO8601());
+            }
 
             HTTPResponse response = sendRequest("POST", "/albums/" + albumId + "/view/", data);
 
