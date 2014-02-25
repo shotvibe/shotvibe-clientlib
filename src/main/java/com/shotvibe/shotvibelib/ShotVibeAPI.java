@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 public class ShotVibeAPI {
-    public static final String BASE_URL = "https://api.shotvibe.com";
+    public static final String BASE_URL = "https://staging-api.shotvibe.com";
 
     private final HTTPLib mHttpLib;
     private final NetworkStatusManager mNetworkStatusManager;
