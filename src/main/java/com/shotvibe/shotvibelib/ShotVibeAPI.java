@@ -4,7 +4,10 @@ import java.util.List;
 import java.util.Map;
 
 public class ShotVibeAPI {
-    public static final String BASE_URL = "https://api.shotvibe.com";
+    public static final boolean useStagingServer = false;
+    public static final String BASE_URL = useStagingServer ? "https://staging-api.shotvibe.com" : "https://api.shotvibe.com";
+    public static final String BASE_UPLOAD_URL = useStagingServer ? "https://staging-upload.shotvibe.com" : "https://api.shotvibe.com";
+    // TODO: BASE_UPLOAD_URL is temporary, until we use the urls returned by the server on a "POST /photos/upload_request"
 
     private final HTTPLib mHttpLib;
     private final NetworkStatusManager mNetworkStatusManager;
