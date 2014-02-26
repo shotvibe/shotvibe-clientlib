@@ -58,7 +58,7 @@ public final class ShotVibeDB {
         return DateTime.FromTimeStamp(cursor.getLong(columnIndex));
     }
 
-    public ArrayList<AlbumSummary> getAlbumList() throws SQLException {
+    public synchronized ArrayList<AlbumSummary> getAlbumList() throws SQLException {
         SQLCursor cursor = mConn.query(""
                 + "SELECT album_id, name, last_updated, num_new_photos, last_access"
                 + " FROM album"
@@ -86,7 +86,7 @@ public final class ShotVibeDB {
         }
     }
 
-    public HashMap<Long, String> getAlbumListEtagValues() throws SQLException {
+    public synchronized HashMap<Long, String> getAlbumListEtagValues() throws SQLException {
         SQLCursor cursor = mConn.query(""
                 + "SELECT album_id, last_etag"
                 + " FROM album");
@@ -138,7 +138,7 @@ public final class ShotVibeDB {
         }
     }
 
-    public void setAlbumList(ArrayList<AlbumSummary> albums) throws SQLException {
+    public synchronized void setAlbumList(ArrayList<AlbumSummary> albums) throws SQLException {
         mConn.beginTransaction();
         try {
             // Keep track of all the new albumIds in an efficient data structure
@@ -205,7 +205,7 @@ public final class ShotVibeDB {
         }
     }
 
-    public AlbumContents getAlbumContents(long albumId) throws SQLException {
+    public synchronized AlbumContents getAlbumContents(long albumId) throws SQLException {
         mConn.beginTransaction();
         try {
             SQLCursor cursor;
@@ -300,7 +300,7 @@ public final class ShotVibeDB {
      * @param albumId
      * @param albumContents Must contain only photos of type AlbumServerPhoto, no AlbumUploadingPhotos allowed!
      */
-    public void setAlbumContents(long albumId, AlbumContents albumContents) throws SQLException {
+    public synchronized void setAlbumContents(long albumId, AlbumContents albumContents) throws SQLException {
         mConn.beginTransaction();
         try {
             mConn.update(""
@@ -431,7 +431,7 @@ public final class ShotVibeDB {
         }
     }
 
-    public void setAlbumLastAccess(long albumId, DateTime lastAccess) throws SQLException {
+    public synchronized void setAlbumLastAccess(long albumId, DateTime lastAccess) throws SQLException {
         mConn.beginTransaction();
         try {
             mConn.update(""
