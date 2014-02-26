@@ -31,6 +31,9 @@ public class PhoneContactsManager implements DevicePhoneContactsLib.DeviceAddres
      * @param listener
      */
     public void setListener(Listener listener) {
+        if (listener == null) {
+            throw new IllegalArgumentException("listener cannot be null");
+        }
         if (mListener != null) {
             throw new IllegalArgumentException("A Listener is already registered. Existing: " + listener + " New: " + listener);
         }
