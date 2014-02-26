@@ -52,6 +52,112 @@ public class ShotVibeAPI {
         requestHeaders.put("Content-Type", "application/json");
     }
 
+    public static final class PhoneNumberAuthorizationResponse {
+        public static PhoneNumberAuthorizationResponse createSuccesful(String confirmationKey) {
+            if (confirmationKey == null) {
+                throw new IllegalArgumentException("confirmationKey cannot be null");
+            }
+
+            return new PhoneNumberAuthorizationResponse(confirmationKey);
+        }
+
+        public static PhoneNumberAuthorizationResponse createInvalidPhoneNumber() {
+            return new PhoneNumberAuthorizationResponse(null);
+        }
+
+        private PhoneNumberAuthorizationResponse(String confirmationKey) {
+            mConfirmationKey = confirmationKey;
+        }
+
+        public boolean isValidResponse() {
+            return mConfirmationKey != null;
+        }
+
+        public String getConfirmationKey() {
+            if (mConfirmationKey == null) {
+                throw new IllegalArgumentException("getConfirmationKey not available for invalid response");
+            }
+
+            return mConfirmationKey;
+        }
+
+        public String mConfirmationKey;
+    }
+
+    public static PhoneNumberAuthorizationResponse authorizePhoneNumber(HTTPLib httpLib, String phoneNumber, String defaultCountry) throws APIException {
+        try {
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("phone_number", phoneNumber);
+            requestBody.put("default_country", defaultCountry);
+
+            Map<String, String> requestHeaders = new HashMap<String, String>();
+            setRequestHeaderContentJSON(requestHeaders);
+            HTTPResponse response = httpLib.sendRequest("POST", BASE_URL + "/auth/authorize_phone_number/", requestHeaders, requestBody);
+
+            final int HTTP_BAD_REQUEST = 400;
+
+            // We want to explicitly check for this error code:
+            // It means that the phone number was invalid
+            if (response.getStatusCode() == HTTP_BAD_REQUEST) {
+                return PhoneNumberAuthorizationResponse.createInvalidPhoneNumber();
+            }
+
+            if (response.isError()) {
+                throw APIException.ErrorStatusCodeException(response);
+            }
+
+            JSONObject responseObj = response.bodyAsJSONObject();
+            String confirmationKey = responseObj.getString("confirmation_key");
+
+            return PhoneNumberAuthorizationResponse.createSuccesful(confirmationKey);
+        } catch (HTTPException e) {
+            throw new APIException(e);
+        } catch (JSONException e) {
+            throw new APIException(e);
+        }
+    }
+
+    public static AuthData confirmSMSCode(HTTPLib httpLib, String confirmationKey, String confirmationCode, String deviceDescription, String defaultCountryCode) throws APIException {
+        try {
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("confirmation_code", confirmationCode);
+            requestBody.put("device_description", deviceDescription);
+
+            Map<String, String> requestHeaders = new HashMap<String, String>();
+            setRequestHeaderContentJSON(requestHeaders);
+            HTTPResponse response = httpLib.sendRequest("POST", BASE_URL + "/auth/confirm_sms_code/" + confirmationKey + "/", requestHeaders, requestBody);
+
+            final int HTTP_FORBIDDEN = 403;
+            final int HTTP_GONE = 410;
+
+            // We want to explicitly check for this error code:
+            // It means that the SMS Code was incorrect
+            if (response.getStatusCode() == HTTP_FORBIDDEN) {
+                return null;
+            } else if (response.getStatusCode() == HTTP_GONE) {
+                // This error code means that the confirmation_key has expired.
+
+                // TODO We should call authorizePhoneNumber again here and then
+                // recursively try calling confirmSMSCode again
+            }
+
+            if (response.isError()) {
+                throw APIException.ErrorStatusCodeException(response);
+            }
+
+            JSONObject responseObj = response.bodyAsJSONObject();
+
+            long userId = responseObj.getLong("user_id");
+            String authToken = responseObj.getString("auth_token");
+
+            return new AuthData(userId, authToken, defaultCountryCode);
+        } catch (HTTPException e) {
+            throw new APIException(e);
+        } catch (JSONException e) {
+            throw new APIException(e);
+        }
+    }
+
     private ArrayList<AlbumPhoto> parsePhotoList(JSONArray photos_array) throws JSONException {
         ArrayList<AlbumPhoto> result = new ArrayList<AlbumPhoto>();
         for (int i = 0; i < photos_array.length(); ++i) {
