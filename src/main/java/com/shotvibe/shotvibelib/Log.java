@@ -1,11 +1,13 @@
 package com.shotvibe.shotvibelib;
 
-import android.util.Log;
-
 public final class Log {
 
-    public static void d(String message) {
-        android.util.Log.d(message);
+    private Log() {
+        //not called
+    }
+
+    public static void d(String tag, String message) {
+        android.util.Log.d(tag, message);
     }
 
 }
