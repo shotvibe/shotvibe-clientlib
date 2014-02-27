@@ -3,7 +3,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:0.7.+'
+        classpath rootProject.ext.gradlePluginClasspath
     }
 }
 apply plugin: 'android-library'
