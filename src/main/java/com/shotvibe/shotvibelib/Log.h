@@ -6,7 +6,7 @@
 @interface SLLog : NSObject {
 }
 
-+ (void)dWithNSString:(NSString *)message;
++ (void)dWithNSString:(NSString *)tag withNSString:(NSString *)message;
 - (id)init;
 @end
 

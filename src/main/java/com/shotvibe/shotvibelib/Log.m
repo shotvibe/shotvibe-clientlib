@@ -2,8 +2,8 @@
 
 @implementation SLLog
 
-+ (void)dWithNSString:(NSString *)message {
-    NSLog(@"%@", message);
++ (void)dWithNSString:(NSString *)tag withNSString:(NSString *)message {
+    NSLog(@"D/%@:%@", message);
 }
 
 - (id)init {
