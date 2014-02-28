@@ -1,5 +1,6 @@
 package com.shotvibe.shotvibelib;
 
+import java.util.List;
 import java.util.Map;
 
 public final class ShotVibeDB {
@@ -49,8 +50,45 @@ public final class ShotVibeDB {
             throw new IllegalArgumentException("conn cannot be null");
         }
 
-        // TODO database migration
+        // Poor man's migration: just clear the database
+        clearDB(conn);
     }
+
+    /**
+     * Clear the database by removing all tables and repopulating it
+     * Should be called from within a transaction
+     *
+     * @param conn
+     * @throws SQLException
+     */
+    private static void clearDB(SQLConnection conn) throws SQLException {
+        Log.d("clearDB", "Clearing old database");
+        List<String> tableNames = new ArrayList<String>();
+        SQLCursor cursor = conn.query(""
+                       + "SELECT tbl_name "
+                       + " FROM main.sqlite_master"
+                       + " WHERE type='table'");
+
+        try {
+            while (cursor.moveToNext()) { // collect all table names
+                tableNames.add(cursor.getString(0));
+            }
+        } finally {
+            cursor.close();
+        }
+
+        for (String tableName : tableNames) { // drop all tables
+            Log.d("clearDB", "Dropping table:" + tableName);
+            conn.update(""
+                   + "DROP TABLE " + tableName);
+        }
+
+        Log.d("clearDB", "Populating new database");
+        populateNewDB(conn);
+
+        Log.d("clearDB", "Upgrade complete");
+    }
+
 
     private SQLConnection mConn;
 
