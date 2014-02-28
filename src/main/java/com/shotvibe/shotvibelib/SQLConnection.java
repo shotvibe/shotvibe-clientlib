@@ -19,6 +19,4 @@ public interface SQLConnection {
     int changes();
 
     void executeSQLScript(String filename) throws SQLException;
-
-    void clearDatabase() throws SQLException;
 }
