@@ -62,7 +62,7 @@ public final class ShotVibeDB {
      * @throws SQLException
      */
     private static void clearDB(SQLConnection conn) throws SQLException {
-        Log.d("upgradeDB", "Clearing old database");
+        Log.d("clearDB", "Clearing old database");
         List<String> tableNames = new ArrayList<String>();
         SQLCursor cursor = conn.query(""
                        + "SELECT tbl_name "
@@ -78,16 +78,16 @@ public final class ShotVibeDB {
         }
 
         for (String tableName : tableNames) { // drop all tables
-            Log.d("upgradeDB", "Dropping table:" + tableName);
+            Log.d("clearDB", "Dropping table:" + tableName);
             conn.update(""
                    + "DROP TABLE "+tableName);
         }
         conn.setTransactionSuccesful();
 
-        Log.d("upgradeDB", "Populating new database");
+        Log.d("clearDB", "Populating new database");
         populateNewDB(conn);
 
-        Log.d("upgradeDB", "Upgrade complete");
+        Log.d("clearDB", "Upgrade complete");
     }
 
 
