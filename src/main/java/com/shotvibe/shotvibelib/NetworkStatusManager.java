@@ -6,11 +6,53 @@ public class NetworkStatusManager {
         mNetworkOnline = true;
 
         mLogEntries = new ArrayList<LogEntry>();
+
+        mListeners = new ArrayList<Listener>();
+        mListenersLock = new Object();
     }
 
     public interface Listener {
+        /**
+         * This will be called from an arbitrary background thread
+         *
+         * @param networkOnline true if the internet connection is online
+         */
         void networkStatusChanged(boolean networkOnline);
     }
+
+    /**
+     * Registers a Listener object that will be notified whenever the network status changes
+     *
+     * @param listener The listener that should be notified about changes
+     *
+     * @return The current status of the network: true if the internet connection is online
+     */
+    public boolean registerListener(Listener listener) {
+        if (listener == null) {
+            throw new IllegalArgumentException("listener cannot be null");
+        }
+
+        synchronized (mListenersLock) {
+            if (mListeners.contains(listener)) {
+                throw new IllegalArgumentException("listener is already registered");
+            }
+
+            mListeners.add(listener);
+
+            return mNetworkOnline;
+        }
+    }
+
+    public void unregisterListener(Listener listener) {
+        synchronized (mListenersLock) {
+            if (!mListeners.remove(listener)) {
+                throw new IllegalArgumentException("listener is not registered");
+            }
+        }
+    }
+
+    private ArrayList<Listener> mListeners;
+    private final Object mListenersLock;
 
     /**
      * This method is thread safe and may be called from any thread
@@ -53,14 +95,30 @@ public class NetworkStatusManager {
                 // Network status is changing from online to offline
                 mNetworkOnline = false;
 
-                // TODO report to listeners...
+                notifyListeners();
             } else if (!mNetworkOnline && !networkError) {
                 // Network status is changing from offline to online
                 mNetworkOnline = true;
 
-                // TODO report to listeners...
+                notifyListeners();
             }
         }
+    }
+
+    private void notifyListeners() {
+        // TODO There is a race condition bug here where it is possible for a later notification to
+        // actually fire before an earlier notification
+
+        ThreadUtil.runInBackgroundThread(new ThreadUtil.Runnable() {
+            @Override
+            public void run() {
+                synchronized (mListenersLock) {
+                    for (Listener listener : mListeners) {
+                        listener.networkStatusChanged(mNetworkOnline);
+                    }
+                }
+            }
+        });
     }
 
     /**
