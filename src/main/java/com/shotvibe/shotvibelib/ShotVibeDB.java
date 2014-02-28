@@ -1,7 +1,7 @@
 package com.shotvibe.shotvibelib;
 
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 
 public final class ShotVibeDB {
     private ShotVibeDB(SQLConnection conn) {
@@ -71,7 +71,7 @@ public final class ShotVibeDB {
 
         try {
             while (cursor.moveToNext()) { // collect all table names
-                tableNames.add( cursor.getString(0));
+                tableNames.add(cursor.getString(0));
             }
         } finally {
             cursor.close();
@@ -80,9 +80,8 @@ public final class ShotVibeDB {
         for (String tableName : tableNames) { // drop all tables
             Log.d("clearDB", "Dropping table:" + tableName);
             conn.update(""
-                   + "DROP TABLE "+tableName);
+                   + "DROP TABLE " + tableName);
         }
-        conn.setTransactionSuccesful();
 
         Log.d("clearDB", "Populating new database");
         populateNewDB(conn);
