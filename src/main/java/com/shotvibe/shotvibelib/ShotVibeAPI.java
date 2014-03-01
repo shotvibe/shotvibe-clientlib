@@ -7,18 +7,23 @@ public class ShotVibeAPI {
     public static final String BASE_URL = "https://api.shotvibe.com";
 
     private final HTTPLib mHttpLib;
+    private final NetworkStatusManager mNetworkStatusManager;
     private final AuthData mAuthData;
     private final Map<String, String> mJsonRequestHeaders;
 
-    public ShotVibeAPI(HTTPLib httpLib, AuthData authData) {
+    public ShotVibeAPI(HTTPLib httpLib, NetworkStatusManager networkStatusManager, AuthData authData) {
         if (httpLib == null) {
             throw new IllegalArgumentException("httpLib cannot be null");
+        }
+        if (networkStatusManager == null) {
+            throw new IllegalArgumentException("networkStatusManager cannot be null");
         }
         if (authData == null) {
             throw new IllegalArgumentException("authData cannot be null");
         }
 
         mHttpLib = httpLib;
+        mNetworkStatusManager = networkStatusManager;
         mAuthData = authData;
 
         mJsonRequestHeaders = new HashMap<String, String>();
@@ -101,8 +106,10 @@ public class ShotVibeAPI {
                 result.add(newAlbum);
             }
 
+            mNetworkStatusManager.logNetworkRequest("GET", "TODO", 0, false, null);
             return result;
         } catch (HTTPException e) {
+            mNetworkStatusManager.logNetworkRequest("GET", "TODO", 0, true, e);
             throw new APIException(e);
         } catch (JSONException e) {
             throw new APIException(e);
