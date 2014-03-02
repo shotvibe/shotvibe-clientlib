@@ -24,7 +24,6 @@ public class NetworkStatusManager {
      * Registers a Listener object that will be notified whenever the network status changes
      *
      * @param listener The listener that should be notified about changes
-     *
      * @return The current status of the network: true if the internet connection is online
      */
     public boolean registerListener(Listener listener) {
@@ -57,48 +56,35 @@ public class NetworkStatusManager {
     /**
      * This method is thread safe and may be called from any thread
      *
-     * @param httpMethod The HTTP method of the call (such as "GET" or "POST")
-     *
-     * @param url The full URL that was called
-     *
-     * @param requestTime How long the request took to complete, in milliseconds. Or 0 if the
-     *                    request was not timed
-     *
-     * @param networkError Should be "true" if the request failed as a result of a network error
-     *                     (such as no internet connection, or even a server 500 error). In this
-     *                     case, the app will display in the UI that there is no internet connection
-     *
-     * @param platformErrorObject If networkError == true, then a platform-specific object
-     *                            containing the details of the error may be passed here. This is
-     *                            allowed to be null (even if networkError is true, for example for
-     *                            server 500 errors, where no platform error object is available)
-     *
-     *                            For Android, this should be an "Exception" object.
-     *
-     *                            For iOS, this should be an "NSError" object.
-     *
+     * @param response The HTTPResponse from the request
      */
-    public void logNetworkRequest(String httpMethod, String url, long requestTime, boolean networkError, Object platformErrorObject) {
-        if (httpMethod == null) {
-            throw new IllegalArgumentException("httpMethod cannot be null");
-        }
-        if (url == null) {
-            throw new IllegalArgumentException("url cannot be null");
-        }
-        if (!networkError && platformErrorObject != null) {
-            throw new IllegalArgumentException("There cannot be a platformErrorObject when networkError is false");
-        }
-
+    public void logNetworkRequest(HTTPResponse response) {
         synchronized (this) {
-            addLogEntry(new LogEntry(httpMethod, url, requestTime, networkError, platformErrorObject));
-            if (mNetworkOnline && networkError) {
-                // Network status is changing from online to offline
-                mNetworkOnline = false;
-
-                notifyListeners();
-            } else if (!mNetworkOnline && !networkError) {
+            addLogEntry(LogEntry.SuccessfulRequest(
+                    response.getMethod(),
+                    response.getUrl(),
+                    response.getStatusCode(),
+                    response.getRequestTime()));
+            if (!mNetworkOnline) {
                 // Network status is changing from offline to online
                 mNetworkOnline = true;
+
+                notifyListeners();
+            }
+        }
+    }
+
+    /**
+     * This method is thread safe and may be called from any thread
+     *
+     * @param apiException The APIException object that resulted from the failed network request
+     */
+    public void logNetworkRequestFailure(APIException apiException) {
+        synchronized (this) {
+            addLogEntry(LogEntry.FailedRequest(apiException));
+            if (mNetworkOnline) {
+                // Network status is changing from online to offline
+                mNetworkOnline = false;
 
                 notifyListeners();
             }
@@ -146,45 +132,87 @@ public class NetworkStatusManager {
         }
     }
 
-    public static class LogEntry {
+    public static final class LogEntry {
         // TODO Should also contain a DateTime of the time the request was logged
 
-        public LogEntry(String httpMethod, String url, long requestTime, boolean networkError, Object platformErrorObject) {
+        public static LogEntry SuccessfulRequest(String httpMethod, String url, int httpStatusCode, long requestTime) {
+            if (httpMethod == null) {
+                throw new IllegalArgumentException("httpMethod cannot be null");
+            }
+            if (url == null) {
+                throw new IllegalArgumentException("url cannot be null");
+            }
+
+            return new LogEntry(httpMethod, url, httpStatusCode, requestTime, null);
+        }
+
+        public static LogEntry FailedRequest(APIException error) {
+            if (error == null) {
+                throw new IllegalArgumentException("error cannot be null");
+            }
+
+            return new LogEntry(null, null, null, 0, error);
+        }
+
+        private LogEntry(String httpMethod,
+                         String url,
+                         Integer httpStatusCode,
+                         long requestTime,
+                         APIException error) {
             mHttpMethod = httpMethod;
             mUrl = url;
+            mHttpStatusCode = httpStatusCode;
             mRequestTime = requestTime;
-            mNetworkError = networkError;
-            mPlatformErrorObject = platformErrorObject;
+            mError = error;
+        }
+
+        public boolean isSuccessfulRequest() {
+            return mError == null;
         }
 
         public String getHttpMethod() {
+            if (!isSuccessfulRequest()) {
+                throw new IllegalArgumentException("cannot call getHttpMethod when !isSuccessfulRequest()");
+            }
+
             return mHttpMethod;
         }
 
         public String getUrl() {
+            if (!isSuccessfulRequest()) {
+                throw new IllegalArgumentException("cannot call getUrl when !isSuccessfulRequest()");
+            }
+
             return mUrl;
         }
 
+        public int getStatusCode() {
+            if (!isSuccessfulRequest()) {
+                throw new IllegalArgumentException("cannot call getStatusCode when !isSuccessfulRequest()");
+            }
+
+            return mHttpStatusCode;
+        }
+
         public long getRequestTime() {
+            if (!isSuccessfulRequest()) {
+                throw new IllegalArgumentException("cannot call getRequestTime when !isSuccessfulRequest()");
+            }
             return mRequestTime;
         }
 
-        public boolean getNetworkError() {
-            return mNetworkError;
-        }
-
-        public Object getPlatformErrorObject() {
-            if (!mNetworkError) {
-                throw new IllegalArgumentException("Can only be called when getNetworkError() is true");
+        public APIException getError() {
+            if (isSuccessfulRequest()) {
+                throw new IllegalArgumentException("cannot call getError when isSuccessfulRequest()");
             }
 
-            return mPlatformErrorObject;
+            return mError;
         }
 
-        private String mHttpMethod;
-        private String mUrl;
-        private long mRequestTime;
-        private boolean mNetworkError;
-        private Object mPlatformErrorObject;
+        private final String mHttpMethod;
+        private final String mUrl;
+        private final Integer mHttpStatusCode;
+        private final long mRequestTime;
+        private final APIException mError;
     }
 }

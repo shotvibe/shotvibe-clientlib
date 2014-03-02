@@ -1,6 +1,20 @@
 package com.shotvibe.shotvibelib;
 
 public abstract class HTTPResponse {
+    /**
+     * @return The HTTP method that was sent during the request
+     */
+    public abstract String getMethod();
+
+    /**
+     * @return The URL that was requested
+     */
+    public abstract String getUrl();
+
+    /**
+     * @return The time in milliseconds that the request took to complete, or 0 if it was not timed
+     */
+    public abstract long getRequestTime();
 
     /**
      * HTTP status code

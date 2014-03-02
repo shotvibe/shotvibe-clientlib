@@ -84,35 +84,40 @@ public class ShotVibeAPI {
             HTTPResponse response = sendRequest("GET", "/albums/");
 
             if (response.isError()) {
-                throw APIException.ErrorStatusCodeException(response);
+                APIException error = APIException.ErrorStatusCodeException(response);
+                mNetworkStatusManager.logNetworkRequestFailure(error);
+                throw error;
             }
 
-            JSONArray response_array = response.bodyAsJSONArray();
-            for (int i = 0; i < response_array.length(); ++i) {
-                JSONObject albumObj = response_array.getJSONObject(i);
+            try {
+                JSONArray response_array = response.bodyAsJSONArray();
+                for (int i = 0; i < response_array.length(); ++i) {
+                    JSONObject albumObj = response_array.getJSONObject(i);
 
-                String etag = albumObj.getString("etag");
-                long id = albumObj.getLong("id");
-                String name = albumObj.getString("name");
-                DateTime date_updated = parseDate(albumObj, "last_updated");
-                ArrayList<AlbumPhoto> latestPhotos = parsePhotoList(albumObj.getJSONArray("latest_photos"));
-                long num_new_photos = albumObj.getLong("num_new_photos");
-                DateTime last_access = null;
-                if (!albumObj.isNull("last_access")) {
-                    last_access = parseDate(albumObj, "last_access");
+                    String etag = albumObj.getString("etag");
+                    long id = albumObj.getLong("id");
+                    String name = albumObj.getString("name");
+                    DateTime date_updated = parseDate(albumObj, "last_updated");
+                    ArrayList<AlbumPhoto> latestPhotos = parsePhotoList(albumObj.getJSONArray("latest_photos"));
+                    long num_new_photos = albumObj.getLong("num_new_photos");
+                    DateTime last_access = null;
+                    if (!albumObj.isNull("last_access")) {
+                        last_access = parseDate(albumObj, "last_access");
+                    }
+                    DateTime dummyDateCreated = DateTime.ParseISO8601("2000-01-01T00:00:00.000Z");
+                    AlbumSummary newAlbum = new AlbumSummary(id, etag, name, dummyDateCreated, date_updated, num_new_photos, last_access, latestPhotos);
+                    result.add(newAlbum);
                 }
-                DateTime dummyDateCreated = DateTime.ParseISO8601("2000-01-01T00:00:00.000Z");
-                AlbumSummary newAlbum = new AlbumSummary(id, etag, name, dummyDateCreated, date_updated, num_new_photos, last_access, latestPhotos);
-                result.add(newAlbum);
+            } catch (JSONException e) {
+                throw APIException.FromJSONException(response, e);
             }
 
-            mNetworkStatusManager.logNetworkRequest("GET", "TODO", 0, false, null);
+            mNetworkStatusManager.logNetworkRequest(response);
             return result;
         } catch (HTTPException e) {
-            mNetworkStatusManager.logNetworkRequest("GET", "TODO", 0, true, e);
-            throw new APIException(e);
-        } catch (JSONException e) {
-            throw new APIException(e);
+            APIException error = APIException.FromHttpException(e);
+            mNetworkStatusManager.logNetworkRequestFailure(error);
+            throw error;
         }
     }
 
@@ -147,17 +152,19 @@ public class ShotVibeAPI {
                 throw APIException.ErrorStatusCodeException(response);
             }
 
-            JSONObject json = response.bodyAsJSONObject();
-            String etagValue = response.getHeaderValue("etag");
-            if (etagValue != null) {
-                etagValue = ParseETagValue(etagValue);
-            }
+            try {
+                JSONObject json = response.bodyAsJSONObject();
+                String etagValue = response.getHeaderValue("etag");
+                if (etagValue != null) {
+                    etagValue = ParseETagValue(etagValue);
+                }
 
-            return parseAlbumContents(json, etagValue);
+                return parseAlbumContents(json, etagValue);
+            } catch (JSONException e) {
+                throw APIException.FromJSONException(response, e);
+            }
         } catch (HTTPException e) {
-            throw new APIException(e);
-        } catch (JSONException e) {
-            throw new APIException(e);
+            throw APIException.FromHttpException(e);
         }
     }
 
@@ -228,12 +235,14 @@ public class ShotVibeAPI {
                 etagValue = ParseETagValue(etagValue);
             }
 
-            JSONObject json = response.bodyAsJSONObject();
-            return parseAlbumContents(json, etagValue);
+            try {
+                JSONObject json = response.bodyAsJSONObject();
+                return parseAlbumContents(json, etagValue);
+            } catch (JSONException e) {
+                throw APIException.FromJSONException(response, e);
+            }
         } catch (HTTPException e) {
-            throw new APIException(e);
-        } catch (JSONException e) {
-            throw new APIException(e);
+            throw APIException.FromHttpException(e);
         }
     }
 
@@ -251,19 +260,21 @@ public class ShotVibeAPI {
 
             ArrayList<String> result = new ArrayList<String>();
 
-            JSONArray responseArray = null;
-            responseArray = response.bodyAsJSONArray();
-            for (int i = 0; i < responseArray.length(); ++i) {
-                JSONObject photoUploadRequestObj = responseArray.getJSONObject(i);
-                String photoId = photoUploadRequestObj.getString("photo_id");
-                result.add(photoId);
+            try {
+                JSONArray responseArray = null;
+                responseArray = response.bodyAsJSONArray();
+                for (int i = 0; i < responseArray.length(); ++i) {
+                    JSONObject photoUploadRequestObj = responseArray.getJSONObject(i);
+                    String photoId = photoUploadRequestObj.getString("photo_id");
+                    result.add(photoId);
+                }
+            } catch (JSONException e) {
+                throw APIException.FromJSONException(response, e);
             }
 
             return result;
-        } catch (JSONException e) {
-            throw new APIException(e);
         } catch (HTTPException e) {
-            throw new APIException(e);
+            throw APIException.FromHttpException(e);
         }
     }
 
@@ -294,13 +305,15 @@ public class ShotVibeAPI {
                 etagValue = ParseETagValue(etagValue);
             }
 
-            JSONObject json = response.bodyAsJSONObject();
+            try {
+                JSONObject json = response.bodyAsJSONObject();
 
-            return parseAlbumContents(json, etagValue);
+                return parseAlbumContents(json, etagValue);
+            } catch (JSONException e) {
+                throw APIException.FromJSONException(response, e);
+            }
         } catch (HTTPException e) {
-            throw new APIException(e);
-        } catch (JSONException e) {
-            throw new APIException(e);
+            throw APIException.FromHttpException(e);
         }
     }
 
@@ -392,22 +405,25 @@ public class ShotVibeAPI {
                 throw APIException.ErrorStatusCodeException(response);
             }
 
-            JSONArray responseJson = response.bodyAsJSONArray();
+            try {
+                JSONArray responseJson = response.bodyAsJSONArray();
 
-            ArrayList<MemberAddFailure> result = new ArrayList<MemberAddFailure>();
-            for (int i = 0; i < responseJson.length(); ++i) {
-                JSONObject obj = responseJson.getJSONObject(i);
-                if (!obj.getBoolean("success")) {
-                    MemberAddFailure elem = new MemberAddFailure(memberAddRequests.get(i));
-                    result.add(elem);
+                ArrayList<MemberAddFailure> result = new ArrayList<MemberAddFailure>();
+                for (int i = 0; i < responseJson.length(); ++i) {
+                    JSONObject obj = responseJson.getJSONObject(i);
+                    if (!obj.getBoolean("success")) {
+                        MemberAddFailure elem = new MemberAddFailure(memberAddRequests.get(i));
+                        result.add(elem);
+                    }
                 }
+
+                return result;
+            } catch (JSONException e) {
+                throw APIException.FromJSONException(response, e);
             }
 
-            return result;
         } catch (HTTPException e) {
-            throw new APIException(e);
-        } catch (JSONException e) {
-            throw new APIException(e);
+            throw APIException.FromHttpException(e);
         }
     }
 
@@ -426,7 +442,7 @@ public class ShotVibeAPI {
                 throw APIException.ErrorStatusCodeException(response);
             }
         } catch (HTTPException e) {
-            throw new APIException(e);
+            throw APIException.FromHttpException(e);
         }
     }
 
@@ -438,7 +454,7 @@ public class ShotVibeAPI {
                 throw APIException.ErrorStatusCodeException(response);
             }
         } catch (HTTPException e) {
-            throw new APIException(e);
+            throw APIException.FromHttpException(e);
         }
     }
 
@@ -462,7 +478,7 @@ public class ShotVibeAPI {
                 throw APIException.ErrorStatusCodeException(response);
             }
         } catch (HTTPException e) {
-            throw new APIException(e);
+            throw APIException.FromHttpException(e);
         }
     }
 
@@ -486,47 +502,50 @@ public class ShotVibeAPI {
                 throw APIException.ErrorStatusCodeException(response);
             }
 
-            ArrayList<PhoneContactServerResult> results = new ArrayList<PhoneContactServerResult>();
-            JSONObject responseObj = response.bodyAsJSONObject();
-            JSONArray phoneNumberDetails = responseObj.getJSONArray("phone_number_details");
-            for (int i = 0; i < phoneNumberDetails.length(); ++i) {
-                JSONObject obj = phoneNumberDetails.getJSONObject(i);
-                String phoneTypeStr = obj.getString("phone_type");
-                PhoneContactServerResult.PhoneType phoneType;
-                if (phoneTypeStr.equals("invalid")) {
-                    phoneType = PhoneContactServerResult.PhoneType.INVALID;
-                } else if (phoneTypeStr.equals("mobile")) {
-                    phoneType = PhoneContactServerResult.PhoneType.MOBILE;
-                } else if (phoneTypeStr.equals("landline")) {
-                    phoneType = PhoneContactServerResult.PhoneType.LANDLINE;
-                } else {
-                    throw new JSONException("Invalid `phone_type` value: " + phoneTypeStr);
-                }
-
-                PhoneContact inputPhoneContact = phoneContacts.get(i);
-
-                PhoneContactServerResult serverResult;
-                if (phoneType != PhoneContactServerResult.PhoneType.MOBILE) {
-                    serverResult = PhoneContactServerResult.createNonMobileResult(inputPhoneContact, phoneType);
-                } else {
-                    Long userId;
-                    if (obj.isNull("user_id")) {
-                        userId = null;
+            try {
+                ArrayList<PhoneContactServerResult> results = new ArrayList<PhoneContactServerResult>();
+                JSONObject responseObj = response.bodyAsJSONObject();
+                JSONArray phoneNumberDetails = responseObj.getJSONArray("phone_number_details");
+                for (int i = 0; i < phoneNumberDetails.length(); ++i) {
+                    JSONObject obj = phoneNumberDetails.getJSONObject(i);
+                    String phoneTypeStr = obj.getString("phone_type");
+                    PhoneContactServerResult.PhoneType phoneType;
+                    if (phoneTypeStr.equals("invalid")) {
+                        phoneType = PhoneContactServerResult.PhoneType.INVALID;
+                    } else if (phoneTypeStr.equals("mobile")) {
+                        phoneType = PhoneContactServerResult.PhoneType.MOBILE;
+                    } else if (phoneTypeStr.equals("landline")) {
+                        phoneType = PhoneContactServerResult.PhoneType.LANDLINE;
                     } else {
-                        userId = obj.getLong("user_id");
+                        throw new JSONException("Invalid `phone_type` value: " + phoneTypeStr);
                     }
-                    String avatarUrl = obj.getString("avatar_url");
-                    String canonicalPhoneNumber = obj.getString("phone_number");
-                    serverResult = PhoneContactServerResult.createMobileResult(inputPhoneContact, userId, avatarUrl, canonicalPhoneNumber);
-                }
-                results.add(serverResult);
-            }
 
-            return results;
+                    PhoneContact inputPhoneContact = phoneContacts.get(i);
+
+                    PhoneContactServerResult serverResult;
+                    if (phoneType != PhoneContactServerResult.PhoneType.MOBILE) {
+                        serverResult = PhoneContactServerResult.createNonMobileResult(inputPhoneContact, phoneType);
+                    } else {
+                        Long userId;
+                        if (obj.isNull("user_id")) {
+                            userId = null;
+                        } else {
+                            userId = obj.getLong("user_id");
+                        }
+                        String avatarUrl = obj.getString("avatar_url");
+                        String canonicalPhoneNumber = obj.getString("phone_number");
+                        serverResult = PhoneContactServerResult.createMobileResult(inputPhoneContact, userId, avatarUrl, canonicalPhoneNumber);
+                    }
+                    results.add(serverResult);
+                }
+
+                return results;
+
+            } catch (JSONException e) {
+                throw APIException.FromJSONException(response, e);
+            }
         } catch (HTTPException e) {
-            throw new APIException(e);
-        } catch (JSONException e) {
-            throw new APIException(e);
+            throw APIException.FromHttpException(e);
         }
     }
 }
