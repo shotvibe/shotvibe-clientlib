@@ -96,6 +96,22 @@ public class APIException extends Exception {
         return result;
     }
 
+    public String getHttpMethod() {
+        return mHttpMethod;
+    }
+
+    public String getUrl() {
+        return mUrl;
+    }
+
+    /**
+     *
+     * @return May return null
+     */
+    public Integer getHttpStatusCode() {
+        return mHttpStatusCode;
+    }
+
     private final String mUserFriendlyMessage;
     private final long mRequestTime;
 
