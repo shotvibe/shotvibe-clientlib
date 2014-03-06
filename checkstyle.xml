@@ -144,7 +144,7 @@
         <!-- Miscellaneous other checks.                   -->
         <!-- See http://checkstyle.sf.net/config_misc.html -->
         <module name="ArrayTypeStyle"/>
-        <module name="TodoComment"/>
+        <!-- <module name="TodoComment"/>  Disabled, to prevent Jenkins from complaining about TODO: comments -->
         <module name="UpperEll"/>
 
     </module>
