@@ -60,6 +60,87 @@ public class ShotVibeAPI {
         requestHeaders.put("Content-Type", "application/json");
     }
 
+    private interface NetworkRequestAction<T> {
+        static class NetworkRequestResult<T> {
+            /**
+             * Create a NetworkRequestResult with a single successful HTTPResponse
+             *
+             * @param result   The result that should be returned to the caller. May be null if the
+             *                 action is allowed to return a null result
+             * @param response The successful HTTPResponse (that may be logged)
+             */
+            public NetworkRequestResult(T result, HTTPResponse response) {
+                if (response == null) {
+                    throw new IllegalArgumentException("response cannot be null");
+                }
+                mResult = result;
+                mResponses = new ArrayList<HTTPResponse>(1);
+                mResponses.add(response);
+            }
+
+            /**
+             * Create a NetworkRequestResult with 2 successful HTTPResponses
+             *
+             * @param result    The result that should be returned to the caller. May be null if the
+             *                  action is allowed to return a null result
+             * @param response1 The first successful HTTPResponse (that may be logged)
+             * @param response2 The second successful HTTPResponse (that may be logged)
+             */
+            public NetworkRequestResult(T result, HTTPResponse response1, HTTPResponse response2) {
+                if (response1 == null) {
+                    throw new IllegalArgumentException("response1 cannot be null");
+                }
+                if (response2 == null) {
+                    throw new IllegalArgumentException("response2 cannot be null");
+                }
+                mResult = result;
+                mResponses = new ArrayList<HTTPResponse>(2);
+                mResponses.add(response1);
+                mResponses.add(response2);
+            }
+
+            public T getResult() {
+                return mResult;
+            }
+
+            public ArrayList<HTTPResponse> getResponses() {
+                return mResponses;
+            }
+
+            private T mResult;
+            private ArrayList<HTTPResponse> mResponses;
+        }
+
+        /**
+         * Runs an action that performs a network request, that can later be logged
+         *
+         * @return Must not return null
+         * @throws APIException
+         * @throws HTTPException
+         */
+        NetworkRequestResult<T> runAction() throws APIException, HTTPException;
+    }
+
+    private <T> T runAndLogNetworkRequestAction(NetworkRequestAction<T> action) throws APIException {
+        try {
+            NetworkRequestAction.NetworkRequestResult<T> result = action.runAction();
+            if (result == null) {
+                throw new IllegalStateException("NetworkRequestAction.runAction returned null: " + action);
+            }
+            for (HTTPResponse successfulResponse : result.getResponses()) {
+                mNetworkStatusManager.logNetworkRequest(successfulResponse);
+            }
+            return result.getResult();
+        } catch (APIException e) {
+            mNetworkStatusManager.logNetworkRequestFailure(e);
+            throw e;
+        } catch (HTTPException e) {
+            APIException error = APIException.FromHttpException(e);
+            mNetworkStatusManager.logNetworkRequestFailure(error);
+            throw error;
+        }
+    }
+
     private ArrayList<AlbumPhoto> parsePhotoList(JSONArray photos_array) throws JSONException {
         ArrayList<AlbumPhoto> result = new ArrayList<AlbumPhoto>();
         for (int i = 0; i < photos_array.length(); ++i) {
@@ -81,47 +162,43 @@ public class ShotVibeAPI {
     }
 
     public ArrayList<AlbumSummary> getAlbums() throws APIException {
-        try {
-            ArrayList<AlbumSummary> result = new ArrayList<AlbumSummary>();
+        return runAndLogNetworkRequestAction(new NetworkRequestAction<ArrayList<AlbumSummary>>() {
+            @Override
+            public NetworkRequestResult<ArrayList<AlbumSummary>> runAction() throws APIException, HTTPException {
+                ArrayList<AlbumSummary> result = new ArrayList<AlbumSummary>();
 
-            HTTPResponse response = sendRequest("GET", "/albums/");
+                HTTPResponse response = sendRequest("GET", "/albums/");
 
-            if (response.isError()) {
-                APIException error = APIException.ErrorStatusCodeException(response);
-                mNetworkStatusManager.logNetworkRequestFailure(error);
-                throw error;
-            }
-
-            try {
-                JSONArray response_array = response.bodyAsJSONArray();
-                for (int i = 0; i < response_array.length(); ++i) {
-                    JSONObject albumObj = response_array.getJSONObject(i);
-
-                    String etag = albumObj.getString("etag");
-                    long id = albumObj.getLong("id");
-                    String name = albumObj.getString("name");
-                    DateTime date_updated = parseDate(albumObj, "last_updated");
-                    ArrayList<AlbumPhoto> latestPhotos = parsePhotoList(albumObj.getJSONArray("latest_photos"));
-                    long num_new_photos = albumObj.getLong("num_new_photos");
-                    DateTime last_access = null;
-                    if (!albumObj.isNull("last_access")) {
-                        last_access = parseDate(albumObj, "last_access");
-                    }
-                    DateTime dummyDateCreated = DateTime.ParseISO8601("2000-01-01T00:00:00.000Z");
-                    AlbumSummary newAlbum = new AlbumSummary(id, etag, name, dummyDateCreated, date_updated, num_new_photos, last_access, latestPhotos);
-                    result.add(newAlbum);
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
                 }
-            } catch (JSONException e) {
-                throw APIException.FromJSONException(response, e);
-            }
 
-            mNetworkStatusManager.logNetworkRequest(response);
-            return result;
-        } catch (HTTPException e) {
-            APIException error = APIException.FromHttpException(e);
-            mNetworkStatusManager.logNetworkRequestFailure(error);
-            throw error;
-        }
+                try {
+                    JSONArray response_array = response.bodyAsJSONArray();
+                    for (int i = 0; i < response_array.length(); ++i) {
+                        JSONObject albumObj = response_array.getJSONObject(i);
+
+                        String etag = albumObj.getString("etag");
+                        long id = albumObj.getLong("id");
+                        String name = albumObj.getString("name");
+                        DateTime date_updated = parseDate(albumObj, "last_updated");
+                        ArrayList<AlbumPhoto> latestPhotos = parsePhotoList(albumObj.getJSONArray("latest_photos"));
+                        long num_new_photos = albumObj.getLong("num_new_photos");
+                        DateTime last_access = null;
+                        if (!albumObj.isNull("last_access")) {
+                            last_access = parseDate(albumObj, "last_access");
+                        }
+                        DateTime dummyDateCreated = DateTime.ParseISO8601("2000-01-01T00:00:00.000Z");
+                        AlbumSummary newAlbum = new AlbumSummary(id, etag, name, dummyDateCreated, date_updated, num_new_photos, last_access, latestPhotos);
+                        result.add(newAlbum);
+                    }
+                } catch (JSONException e) {
+                    throw APIException.FromJSONException(response, e);
+                }
+
+                return new NetworkRequestResult<ArrayList<AlbumSummary>>(result, response);
+            }
+        });
     }
 
     /**
