@@ -25,3 +25,10 @@ jars/android.jar
     http://developer.android.com/sdk/index.html
 
     Used for testing, to verify that the java source files compile
+
+
+jars/checkstyle-5.7-all.jar
+
+    This is from Checkstyle 5.7
+
+    http://checkstyle.sourceforge.net/

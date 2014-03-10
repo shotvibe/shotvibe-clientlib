@@ -9,7 +9,7 @@ echo "Running Checkstyle"
 mkdir -p reports
 rm -f reports/checkstyle-result.xml
 
-find src -name '*.java' -print0 | xargs -0 checkstyle -c checkstyle.xml -f xml -o reports/checkstyle-result.xml || true
+find src -name '*.java' -print0 | xargs -0 java -classpath src/main/java:third_party/jars/checkstyle-5.7-all.jar com.puppycrawl.tools.checkstyle.Main -c checkstyle.xml -f xml -o reports/checkstyle-result.xml || true
 
 # Test the Obj-C Build
 ./tools/test_objc_build.sh
