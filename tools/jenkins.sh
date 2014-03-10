@@ -1,5 +1,9 @@
 #!/bin/sh -e
 
+# Compile the Java source into class files
+echo "Compiling Java source into class files"
+javac -classpath third_party/jars/android.jar `find src -name '*.java'`
+
 # Run checkstyle
 
 mkdir -p reports
