@@ -44,3 +44,30 @@ that we can choose to link with it:
 
 In the "Link Binary with Libraries" stage, add a new library, and find
 `build/current_shotvibelib.a`.
+
+
+## Test Environment Setup
+
+The test script must be run on a Mac OS X system.
+
+To run the test script, run:
+
+    $ ./tools/jenkins.sh
+
+But you first need the following tools:
+
+-   **Xcode**: You can verify that this is properly installed with the command:
+
+        $ xcodebuild -version
+
+-   **Java**: You need Java and its build tools. Not sure the best way to
+    install this, but it's usually installed on the sytem.
+
+-   **Checkstyle**: You need to have a command called `checkstyle` in your
+    `PATH`. The easiest way to do this is to get the file
+    `checkstyle-5.7-all.jar` from the
+    [Checkstyle](http://checkstyle.sourceforge.net) download. Then make a shell
+    script in your `PATH` called `checkstyle` with the contents:
+
+        #!/bin/bash
+        java -jar /path/to/checkstyle-5.7-all.jar "$@"
