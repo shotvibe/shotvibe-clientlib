@@ -4,8 +4,8 @@
 echo "Compiling Java source into class files"
 javac -classpath third_party/jars/android.jar `find src -name '*.java'`
 
-# Run checkstyle
-
+# Run Checkstyle
+echo "Running Checkstyle"
 mkdir -p reports
 rm -f reports/checkstyle-result.xml
 
