@@ -22,4 +22,6 @@ jars/android.jar
 
     This is from: "SDK Platform Android 4.4.2, API 19, revision 3"
 
+    http://developer.android.com/sdk/index.html
+
     Used for testing, to verify that the java source files compile
