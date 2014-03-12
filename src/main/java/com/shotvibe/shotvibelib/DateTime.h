@@ -6,6 +6,7 @@
 @interface SLDateTime : NSObject
 
 + (SLDateTime *)FromTimeStampWithLong:(long long int)timeStamp;
++ (SLDateTime *)NowUTC;
 - (long long int)getTimeStamp;
 - (NSString *)formatISO8601;
 + (SLDateTime *)ParseISO8601WithNSString:(NSString *)input;
