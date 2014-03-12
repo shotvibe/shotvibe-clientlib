@@ -6,7 +6,7 @@ import java.util.Map;
 public class ShotVibeAPI {
     public static final boolean useStagingServer = false;
     public static final String BASE_URL = useStagingServer ? "https://staging-api.shotvibe.com" : "https://api.shotvibe.com";
-    public static final String BASE_UPLOAD_URL = useStagingServer ? "https://staging-upload.shotvibe.com" : "https://api.shotvibe.com";
+    public static final String BASE_UPLOAD_URL = useStagingServer ? "https://staging-upload.shotvibe.com" : "https://upload.shotvibe.com";
     // TODO: BASE_UPLOAD_URL is temporary, until we use the urls returned by the server on a "POST /photos/upload_request"
 
     private final HTTPLib mHttpLib;
@@ -352,6 +352,7 @@ public class ShotVibeAPI {
                     for (int i = 0; i < responseArray.length(); ++i) {
                         JSONObject photoUploadRequestObj = responseArray.getJSONObject(i);
                         String photoId = photoUploadRequestObj.getString("photo_id");
+                        //Log.d("ShotVibeAPI", photoUploadRequestObj.getString("upload_url"));
                         result.add(photoId);
                     }
                 } catch (JSONException e) {
