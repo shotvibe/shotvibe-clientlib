@@ -60,6 +60,87 @@ public class ShotVibeAPI {
         requestHeaders.put("Content-Type", "application/json");
     }
 
+    private interface NetworkRequestAction<T> {
+        static class NetworkRequestResult<T> {
+            /**
+             * Create a NetworkRequestResult with a single successful HTTPResponse
+             *
+             * @param result   The result that should be returned to the caller. May be null if the
+             *                 action is allowed to return a null result
+             * @param response The successful HTTPResponse (that may be logged)
+             */
+            public NetworkRequestResult(T result, HTTPResponse response) {
+                if (response == null) {
+                    throw new IllegalArgumentException("response cannot be null");
+                }
+                mResult = result;
+                mResponses = new ArrayList<HTTPResponse>(1);
+                mResponses.add(response);
+            }
+
+            /**
+             * Create a NetworkRequestResult with 2 successful HTTPResponses
+             *
+             * @param result    The result that should be returned to the caller. May be null if the
+             *                  action is allowed to return a null result
+             * @param response1 The first successful HTTPResponse (that may be logged)
+             * @param response2 The second successful HTTPResponse (that may be logged)
+             */
+            public NetworkRequestResult(T result, HTTPResponse response1, HTTPResponse response2) {
+                if (response1 == null) {
+                    throw new IllegalArgumentException("response1 cannot be null");
+                }
+                if (response2 == null) {
+                    throw new IllegalArgumentException("response2 cannot be null");
+                }
+                mResult = result;
+                mResponses = new ArrayList<HTTPResponse>(2);
+                mResponses.add(response1);
+                mResponses.add(response2);
+            }
+
+            public T getResult() {
+                return mResult;
+            }
+
+            public ArrayList<HTTPResponse> getResponses() {
+                return mResponses;
+            }
+
+            private T mResult;
+            private ArrayList<HTTPResponse> mResponses;
+        }
+
+        /**
+         * Runs an action that performs a network request, that can later be logged
+         *
+         * @return Must not return null
+         * @throws APIException
+         * @throws HTTPException
+         */
+        NetworkRequestResult<T> runAction() throws APIException, HTTPException;
+    }
+
+    private <T> T runAndLogNetworkRequestAction(NetworkRequestAction<T> action) throws APIException {
+        try {
+            NetworkRequestAction.NetworkRequestResult<T> result = action.runAction();
+            if (result == null) {
+                throw new IllegalStateException("NetworkRequestAction.runAction returned null: " + action);
+            }
+            for (HTTPResponse successfulResponse : result.getResponses()) {
+                mNetworkStatusManager.logNetworkRequest(successfulResponse);
+            }
+            return result.getResult();
+        } catch (APIException e) {
+            mNetworkStatusManager.logNetworkRequestFailure(e);
+            throw e;
+        } catch (HTTPException e) {
+            APIException error = APIException.FromHttpException(e);
+            mNetworkStatusManager.logNetworkRequestFailure(error);
+            throw error;
+        }
+    }
+
     private ArrayList<AlbumPhoto> parsePhotoList(JSONArray photos_array) throws JSONException {
         ArrayList<AlbumPhoto> result = new ArrayList<AlbumPhoto>();
         for (int i = 0; i < photos_array.length(); ++i) {
@@ -81,47 +162,43 @@ public class ShotVibeAPI {
     }
 
     public ArrayList<AlbumSummary> getAlbums() throws APIException {
-        try {
-            ArrayList<AlbumSummary> result = new ArrayList<AlbumSummary>();
+        return runAndLogNetworkRequestAction(new NetworkRequestAction<ArrayList<AlbumSummary>>() {
+            @Override
+            public NetworkRequestResult<ArrayList<AlbumSummary>> runAction() throws APIException, HTTPException {
+                ArrayList<AlbumSummary> result = new ArrayList<AlbumSummary>();
 
-            HTTPResponse response = sendRequest("GET", "/albums/");
+                HTTPResponse response = sendRequest("GET", "/albums/");
 
-            if (response.isError()) {
-                APIException error = APIException.ErrorStatusCodeException(response);
-                mNetworkStatusManager.logNetworkRequestFailure(error);
-                throw error;
-            }
-
-            try {
-                JSONArray response_array = response.bodyAsJSONArray();
-                for (int i = 0; i < response_array.length(); ++i) {
-                    JSONObject albumObj = response_array.getJSONObject(i);
-
-                    String etag = albumObj.getString("etag");
-                    long id = albumObj.getLong("id");
-                    String name = albumObj.getString("name");
-                    DateTime date_updated = parseDate(albumObj, "last_updated");
-                    ArrayList<AlbumPhoto> latestPhotos = parsePhotoList(albumObj.getJSONArray("latest_photos"));
-                    long num_new_photos = albumObj.getLong("num_new_photos");
-                    DateTime last_access = null;
-                    if (!albumObj.isNull("last_access")) {
-                        last_access = parseDate(albumObj, "last_access");
-                    }
-                    DateTime dummyDateCreated = DateTime.ParseISO8601("2000-01-01T00:00:00.000Z");
-                    AlbumSummary newAlbum = new AlbumSummary(id, etag, name, dummyDateCreated, date_updated, num_new_photos, last_access, latestPhotos);
-                    result.add(newAlbum);
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
                 }
-            } catch (JSONException e) {
-                throw APIException.FromJSONException(response, e);
-            }
 
-            mNetworkStatusManager.logNetworkRequest(response);
-            return result;
-        } catch (HTTPException e) {
-            APIException error = APIException.FromHttpException(e);
-            mNetworkStatusManager.logNetworkRequestFailure(error);
-            throw error;
-        }
+                try {
+                    JSONArray response_array = response.bodyAsJSONArray();
+                    for (int i = 0; i < response_array.length(); ++i) {
+                        JSONObject albumObj = response_array.getJSONObject(i);
+
+                        String etag = albumObj.getString("etag");
+                        long id = albumObj.getLong("id");
+                        String name = albumObj.getString("name");
+                        DateTime date_updated = parseDate(albumObj, "last_updated");
+                        ArrayList<AlbumPhoto> latestPhotos = parsePhotoList(albumObj.getJSONArray("latest_photos"));
+                        long num_new_photos = albumObj.getLong("num_new_photos");
+                        DateTime last_access = null;
+                        if (!albumObj.isNull("last_access")) {
+                            last_access = parseDate(albumObj, "last_access");
+                        }
+                        DateTime dummyDateCreated = DateTime.ParseISO8601("2000-01-01T00:00:00.000Z");
+                        AlbumSummary newAlbum = new AlbumSummary(id, etag, name, dummyDateCreated, date_updated, num_new_photos, last_access, latestPhotos);
+                        result.add(newAlbum);
+                    }
+                } catch (JSONException e) {
+                    throw APIException.FromJSONException(response, e);
+                }
+
+                return new NetworkRequestResult<ArrayList<AlbumSummary>>(result, response);
+            }
+        });
     }
 
     /**
@@ -147,28 +224,30 @@ public class ShotVibeAPI {
         return value.substring(1, value.length() - 1);
     }
 
-    public AlbumContents getAlbumContents(long albumId) throws APIException {
-        try {
-            HTTPResponse response = sendRequest("GET", "/albums/" + albumId + "/");
+    public AlbumContents getAlbumContents(final long albumId) throws APIException {
+        return runAndLogNetworkRequestAction(new NetworkRequestAction<AlbumContents>() {
+            @Override
+            public NetworkRequestResult<AlbumContents> runAction() throws APIException, HTTPException {
+                HTTPResponse response = sendRequest("GET", "/albums/" + albumId + "/");
 
-            if (response.isError()) {
-                throw APIException.ErrorStatusCodeException(response);
-            }
-
-            try {
-                JSONObject json = response.bodyAsJSONObject();
-                String etagValue = response.getHeaderValue("etag");
-                if (etagValue != null) {
-                    etagValue = ParseETagValue(etagValue);
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
                 }
 
-                return parseAlbumContents(json, etagValue);
-            } catch (JSONException e) {
-                throw APIException.FromJSONException(response, e);
+                try {
+                    JSONObject json = response.bodyAsJSONObject();
+                    String etagValue = response.getHeaderValue("etag");
+                    if (etagValue != null) {
+                        etagValue = ParseETagValue(etagValue);
+                    }
+
+                    AlbumContents result = parseAlbumContents(json, etagValue);
+                    return new NetworkRequestResult<AlbumContents>(result, response);
+                } catch (JSONException e) {
+                    throw APIException.FromJSONException(response, e);
+                }
             }
-        } catch (HTTPException e) {
-            throw APIException.FromHttpException(e);
-        }
+        });
     }
 
     /**
@@ -220,104 +299,109 @@ public class ShotVibeAPI {
         return new AlbumContents(id, etag, name, date_created, date_updated, num_new_photos, last_access, photos, members);
     }
 
-    public AlbumContents createNewBlankAlbum(String albumName) throws APIException {
-        try {
-            JSONObject data = new JSONObject();
-            data.put("album_name", albumName);
-            data.put("photos", new JSONArray());
-            data.put("members", new JSONArray());
+    public AlbumContents createNewBlankAlbum(final String albumName) throws APIException {
+        return runAndLogNetworkRequestAction(new NetworkRequestAction<AlbumContents>() {
+            @Override
+            public NetworkRequestResult<AlbumContents> runAction() throws APIException, HTTPException {
+                JSONObject data = new JSONObject();
+                data.put("album_name", albumName);
+                data.put("photos", new JSONArray());
+                data.put("members", new JSONArray());
 
-            HTTPResponse response = sendRequest("POST", "/albums/", data);
+                HTTPResponse response = sendRequest("POST", "/albums/", data);
 
-            if (response.isError()) {
-                throw APIException.ErrorStatusCodeException(response);
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+
+                String etagValue = response.getHeaderValue("etag");
+                if (etagValue != null) {
+                    etagValue = ParseETagValue(etagValue);
+                }
+
+                try {
+                    JSONObject json = response.bodyAsJSONObject();
+                    AlbumContents result = parseAlbumContents(json, etagValue);
+                    return new NetworkRequestResult<AlbumContents>(result, response);
+                } catch (JSONException e) {
+                    throw APIException.FromJSONException(response, e);
+                }
             }
-
-            String etagValue = response.getHeaderValue("etag");
-            if (etagValue != null) {
-                etagValue = ParseETagValue(etagValue);
-            }
-
-            try {
-                JSONObject json = response.bodyAsJSONObject();
-                return parseAlbumContents(json, etagValue);
-            } catch (JSONException e) {
-                throw APIException.FromJSONException(response, e);
-            }
-        } catch (HTTPException e) {
-            throw APIException.FromHttpException(e);
-        }
+        });
     }
 
-    public ArrayList<String> photosUploadRequest(int numPhotos) throws APIException {
+    public ArrayList<String> photosUploadRequest(final int numPhotos) throws APIException {
         if (numPhotos < 1) {
             throw new IllegalArgumentException("numPhotos must be at least 1: " + numPhotos);
         }
 
-        try {
-            HTTPResponse response = sendRequest("POST", "/photos/upload_request/?num_photos=" + numPhotos);
+        return runAndLogNetworkRequestAction(new NetworkRequestAction<ArrayList<String>>() {
+            @Override
+            public NetworkRequestResult<ArrayList<String>> runAction() throws APIException, HTTPException {
+                HTTPResponse response = sendRequest("POST", "/photos/upload_request/?num_photos=" + numPhotos);
 
-            if (response.isError()) {
-                throw APIException.ErrorStatusCodeException(response);
-            }
-
-            ArrayList<String> result = new ArrayList<String>();
-
-            try {
-                JSONArray responseArray = null;
-                responseArray = response.bodyAsJSONArray();
-                for (int i = 0; i < responseArray.length(); ++i) {
-                    JSONObject photoUploadRequestObj = responseArray.getJSONObject(i);
-                    String photoId = photoUploadRequestObj.getString("photo_id");
-                    result.add(photoId);
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
                 }
-            } catch (JSONException e) {
-                throw APIException.FromJSONException(response, e);
-            }
 
-            return result;
-        } catch (HTTPException e) {
-            throw APIException.FromHttpException(e);
-        }
+                ArrayList<String> result = new ArrayList<String>();
+
+                try {
+                    JSONArray responseArray = null;
+                    responseArray = response.bodyAsJSONArray();
+                    for (int i = 0; i < responseArray.length(); ++i) {
+                        JSONObject photoUploadRequestObj = responseArray.getJSONObject(i);
+                        String photoId = photoUploadRequestObj.getString("photo_id");
+                        result.add(photoId);
+                    }
+                } catch (JSONException e) {
+                    throw APIException.FromJSONException(response, e);
+                }
+
+                return new NetworkRequestResult<ArrayList<String>>(result, response);
+            }
+        });
     }
 
-    public AlbumContents albumAddPhotos(long albumId, Iterable<String> photoIds) throws APIException {
-        try {
-            JSONObject data = new JSONObject();
+    public AlbumContents albumAddPhotos(final long albumId, final Iterable<String> photoIds) throws APIException {
+        return runAndLogNetworkRequestAction(new NetworkRequestAction<AlbumContents>() {
+            @Override
+            public NetworkRequestResult<AlbumContents> runAction() throws APIException, HTTPException {
+                JSONObject data = new JSONObject();
 
-            JSONArray photosArray = new JSONArray();
-            for (String photoId : photoIds) {
-                JSONObject photoObj = new JSONObject();
-                if (photoId == null) {
-                    throw new IllegalArgumentException("photoIds must not contain any null values");
+                JSONArray photosArray = new JSONArray();
+                for (String photoId : photoIds) {
+                    JSONObject photoObj = new JSONObject();
+                    if (photoId == null) {
+                        throw new IllegalArgumentException("photoIds must not contain any null values");
+                    }
+                    photoObj.put("photo_id", photoId);
+                    photosArray.put(photoObj);
                 }
-                photoObj.put("photo_id", photoId);
-                photosArray.put(photoObj);
+
+                data.put("add_photos", photosArray);
+
+                HTTPResponse response = sendRequest("POST", "/albums/" + albumId + "/", data);
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+
+                String etagValue = response.getHeaderValue("etag");
+                if (etagValue != null) {
+                    etagValue = ParseETagValue(etagValue);
+                }
+
+                try {
+                    JSONObject json = response.bodyAsJSONObject();
+
+                    AlbumContents result = parseAlbumContents(json, etagValue);
+                    return new NetworkRequestResult<AlbumContents>(result, response);
+                } catch (JSONException e) {
+                    throw APIException.FromJSONException(response, e);
+                }
             }
-
-            data.put("add_photos", photosArray);
-
-            HTTPResponse response = sendRequest("POST", "/albums/" + albumId + "/", data);
-
-            if (response.isError()) {
-                throw APIException.ErrorStatusCodeException(response);
-            }
-
-            String etagValue = response.getHeaderValue("etag");
-            if (etagValue != null) {
-                etagValue = ParseETagValue(etagValue);
-            }
-
-            try {
-                JSONObject json = response.bodyAsJSONObject();
-
-                return parseAlbumContents(json, etagValue);
-            } catch (JSONException e) {
-                throw APIException.FromJSONException(response, e);
-            }
-        } catch (HTTPException e) {
-            throw APIException.FromHttpException(e);
-        }
+        });
     }
 
     public static class MemberAddRequest {
@@ -376,179 +460,187 @@ public class ShotVibeAPI {
         // TODO Add Failure reason enum
     }
 
-    public ArrayList<MemberAddFailure> albumAddMembers(long albumId, List<MemberAddRequest> memberAddRequests, String defaultCountry) throws APIException {
+    public ArrayList<MemberAddFailure> albumAddMembers(final long albumId, final List<MemberAddRequest> memberAddRequests, final String defaultCountry) throws APIException {
         if (memberAddRequests.isEmpty()) {
             throw new IllegalArgumentException("memberAddRequests cannot be empty");
         }
 
-        try {
-            JSONObject requestBody = new JSONObject();
+        return runAndLogNetworkRequestAction(new NetworkRequestAction<ArrayList<MemberAddFailure>>() {
+            @Override
+            public NetworkRequestResult<ArrayList<MemberAddFailure>> runAction() throws APIException, HTTPException {
+                JSONObject requestBody = new JSONObject();
 
-            JSONArray membersArray = new JSONArray();
+                JSONArray membersArray = new JSONArray();
 
-            for (MemberAddRequest memberAddRequest : memberAddRequests) {
-                if (memberAddRequest.isUserIdRequest()) {
-                    JSONObject memberObj = new JSONObject();
-                    memberObj.put("user_id", memberAddRequest.getUserId());
-                    membersArray.put(memberObj);
-                } else {
-                    JSONObject memberObj = new JSONObject();
-                    memberObj.put("contact_nickname", memberAddRequest.getNickname());
-                    memberObj.put("phone_number", memberAddRequest.getPhoneNumber());
-                    memberObj.put("default_country", defaultCountry);
-                    membersArray.put(memberObj);
-                }
-            }
-
-            requestBody.put("members", membersArray);
-
-            HTTPResponse response = sendRequest("POST", "/albums/" + albumId + "/members/", requestBody);
-
-            if (response.isError()) {
-                throw APIException.ErrorStatusCodeException(response);
-            }
-
-            try {
-                JSONArray responseJson = response.bodyAsJSONArray();
-
-                ArrayList<MemberAddFailure> result = new ArrayList<MemberAddFailure>();
-                for (int i = 0; i < responseJson.length(); ++i) {
-                    JSONObject obj = responseJson.getJSONObject(i);
-                    if (!obj.getBoolean("success")) {
-                        MemberAddFailure elem = new MemberAddFailure(memberAddRequests.get(i));
-                        result.add(elem);
+                for (MemberAddRequest memberAddRequest : memberAddRequests) {
+                    if (memberAddRequest.isUserIdRequest()) {
+                        JSONObject memberObj = new JSONObject();
+                        memberObj.put("user_id", memberAddRequest.getUserId());
+                        membersArray.put(memberObj);
+                    } else {
+                        JSONObject memberObj = new JSONObject();
+                        memberObj.put("contact_nickname", memberAddRequest.getNickname());
+                        memberObj.put("phone_number", memberAddRequest.getPhoneNumber());
+                        memberObj.put("default_country", defaultCountry);
+                        membersArray.put(memberObj);
                     }
                 }
 
-                return result;
-            } catch (JSONException e) {
-                throw APIException.FromJSONException(response, e);
-            }
+                requestBody.put("members", membersArray);
 
-        } catch (HTTPException e) {
-            throw APIException.FromHttpException(e);
-        }
-    }
+                HTTPResponse response = sendRequest("POST", "/albums/" + albumId + "/members/", requestBody);
 
-    public void markAlbumAsViewed(long albumId, DateTime lastAccess) throws APIException {
-        try {
-            JSONObject data = new JSONObject();
-            if (lastAccess == null) {
-                data.putNull("timestamp");
-            } else {
-                data.put("timestamp", lastAccess.formatISO8601());
-            }
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
 
-            HTTPResponse response = sendRequest("POST", "/albums/" + albumId + "/view/", data);
+                try {
+                    JSONArray responseJson = response.bodyAsJSONArray();
 
-            if (response.isError()) {
-                throw APIException.ErrorStatusCodeException(response);
-            }
-        } catch (HTTPException e) {
-            throw APIException.FromHttpException(e);
-        }
-    }
-
-    public void leaveAlbum(long albumId) throws APIException {
-        try {
-            HTTPResponse response = sendRequest("POST", "/albums/" + albumId + "/leave/");
-
-            if (response.isError()) {
-                throw APIException.ErrorStatusCodeException(response);
-            }
-        } catch (HTTPException e) {
-            throw APIException.FromHttpException(e);
-        }
-    }
-
-    public void deletePhotos(Iterable<String> photoIds) throws APIException {
-        try {
-            JSONObject requestBody = new JSONObject();
-
-            JSONArray photosArray = new JSONArray();
-
-            for (String photoId : photoIds) {
-                JSONObject memberObj = new JSONObject();
-                memberObj.put("photo_id", photoId);
-                photosArray.put(memberObj);
-            }
-
-            requestBody.put("photos", photosArray);
-
-            HTTPResponse response = sendRequest("POST", "/photos/delete/", requestBody);
-
-            if (response.isError()) {
-                throw APIException.ErrorStatusCodeException(response);
-            }
-        } catch (HTTPException e) {
-            throw APIException.FromHttpException(e);
-        }
-    }
-
-    public ArrayList<PhoneContactServerResult> queryPhoneNumbers(ArrayList<PhoneContact> phoneContacts, String defaultCountry) throws APIException {
-        try {
-            JSONArray phoneNumbers = new JSONArray();
-            for (PhoneContact p : phoneContacts) {
-                JSONObject entry = new JSONObject();
-                entry.put("phone_number", p.getPhoneNumber());
-                entry.put("contact_nickname", p.getFullName());
-                phoneNumbers.put(entry);
-            }
-
-            JSONObject requestBody = new JSONObject();
-            requestBody.put("default_country", defaultCountry);
-            requestBody.put("phone_numbers", phoneNumbers);
-
-            HTTPResponse response = sendRequest("POST", "/query_phone_numbers/", requestBody);
-
-            if (response.isError()) {
-                throw APIException.ErrorStatusCodeException(response);
-            }
-
-            try {
-                ArrayList<PhoneContactServerResult> results = new ArrayList<PhoneContactServerResult>();
-                JSONObject responseObj = response.bodyAsJSONObject();
-                JSONArray phoneNumberDetails = responseObj.getJSONArray("phone_number_details");
-                for (int i = 0; i < phoneNumberDetails.length(); ++i) {
-                    JSONObject obj = phoneNumberDetails.getJSONObject(i);
-                    String phoneTypeStr = obj.getString("phone_type");
-                    PhoneContactServerResult.PhoneType phoneType;
-                    if (phoneTypeStr.equals("invalid")) {
-                        phoneType = PhoneContactServerResult.PhoneType.INVALID;
-                    } else if (phoneTypeStr.equals("mobile")) {
-                        phoneType = PhoneContactServerResult.PhoneType.MOBILE;
-                    } else if (phoneTypeStr.equals("landline")) {
-                        phoneType = PhoneContactServerResult.PhoneType.LANDLINE;
-                    } else {
-                        throw new JSONException("Invalid `phone_type` value: " + phoneTypeStr);
-                    }
-
-                    PhoneContact inputPhoneContact = phoneContacts.get(i);
-
-                    PhoneContactServerResult serverResult;
-                    if (phoneType != PhoneContactServerResult.PhoneType.MOBILE) {
-                        serverResult = PhoneContactServerResult.createNonMobileResult(inputPhoneContact, phoneType);
-                    } else {
-                        Long userId;
-                        if (obj.isNull("user_id")) {
-                            userId = null;
-                        } else {
-                            userId = obj.getLong("user_id");
+                    ArrayList<MemberAddFailure> result = new ArrayList<MemberAddFailure>();
+                    for (int i = 0; i < responseJson.length(); ++i) {
+                        JSONObject obj = responseJson.getJSONObject(i);
+                        if (!obj.getBoolean("success")) {
+                            MemberAddFailure elem = new MemberAddFailure(memberAddRequests.get(i));
+                            result.add(elem);
                         }
-                        String avatarUrl = obj.getString("avatar_url");
-                        String canonicalPhoneNumber = obj.getString("phone_number");
-                        serverResult = PhoneContactServerResult.createMobileResult(inputPhoneContact, userId, avatarUrl, canonicalPhoneNumber);
                     }
-                    results.add(serverResult);
+
+                    return new NetworkRequestResult<ArrayList<MemberAddFailure>>(result, response);
+                } catch (JSONException e) {
+                    throw APIException.FromJSONException(response, e);
+                }
+            }
+        });
+    }
+
+    public void markAlbumAsViewed(final long albumId, final DateTime lastAccess) throws APIException {
+        runAndLogNetworkRequestAction(new NetworkRequestAction<Void>() {
+            @Override
+            public NetworkRequestResult<Void> runAction() throws APIException, HTTPException {
+                JSONObject data = new JSONObject();
+                if (lastAccess == null) {
+                    data.putNull("timestamp");
+                } else {
+                    data.put("timestamp", lastAccess.formatISO8601());
                 }
 
-                return results;
+                HTTPResponse response = sendRequest("POST", "/albums/" + albumId + "/view/", data);
 
-            } catch (JSONException e) {
-                throw APIException.FromJSONException(response, e);
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+                return new NetworkRequestResult<Void>(null, response);
             }
-        } catch (HTTPException e) {
-            throw APIException.FromHttpException(e);
-        }
+        });
+    }
+
+    public void leaveAlbum(final long albumId) throws APIException {
+        runAndLogNetworkRequestAction(new NetworkRequestAction<Object>() {
+            @Override
+            public NetworkRequestResult<Object> runAction() throws APIException, HTTPException {
+                HTTPResponse response = sendRequest("POST", "/albums/" + albumId + "/leave/");
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+
+                return new NetworkRequestResult<Object>(null, response);
+            }
+        });
+    }
+
+    public void deletePhotos(final Iterable<String> photoIds) throws APIException {
+        runAndLogNetworkRequestAction(new NetworkRequestAction<Object>() {
+            @Override
+            public NetworkRequestResult<Object> runAction() throws APIException, HTTPException {
+                JSONObject requestBody = new JSONObject();
+
+                JSONArray photosArray = new JSONArray();
+
+                for (String photoId : photoIds) {
+                    JSONObject memberObj = new JSONObject();
+                    memberObj.put("photo_id", photoId);
+                    photosArray.put(memberObj);
+                }
+
+                requestBody.put("photos", photosArray);
+
+                HTTPResponse response = sendRequest("POST", "/photos/delete/", requestBody);
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+
+                return new NetworkRequestResult<Object>(null, response);
+            }
+        });
+    }
+
+    public ArrayList<PhoneContactServerResult> queryPhoneNumbers(final ArrayList<PhoneContact> phoneContacts, final String defaultCountry) throws APIException {
+        return runAndLogNetworkRequestAction(new NetworkRequestAction<ArrayList<PhoneContactServerResult>>() {
+            @Override
+            public NetworkRequestResult<ArrayList<PhoneContactServerResult>> runAction() throws APIException, HTTPException {
+                JSONArray phoneNumbers = new JSONArray();
+                for (PhoneContact p : phoneContacts) {
+                    JSONObject entry = new JSONObject();
+                    entry.put("phone_number", p.getPhoneNumber());
+                    entry.put("contact_nickname", p.getFullName());
+                    phoneNumbers.put(entry);
+                }
+
+                JSONObject requestBody = new JSONObject();
+                requestBody.put("default_country", defaultCountry);
+                requestBody.put("phone_numbers", phoneNumbers);
+
+                HTTPResponse response = sendRequest("POST", "/query_phone_numbers/", requestBody);
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+
+                try {
+                    ArrayList<PhoneContactServerResult> results = new ArrayList<PhoneContactServerResult>();
+                    JSONObject responseObj = response.bodyAsJSONObject();
+                    JSONArray phoneNumberDetails = responseObj.getJSONArray("phone_number_details");
+                    for (int i = 0; i < phoneNumberDetails.length(); ++i) {
+                        JSONObject obj = phoneNumberDetails.getJSONObject(i);
+                        String phoneTypeStr = obj.getString("phone_type");
+                        PhoneContactServerResult.PhoneType phoneType;
+                        if (phoneTypeStr.equals("invalid")) {
+                            phoneType = PhoneContactServerResult.PhoneType.INVALID;
+                        } else if (phoneTypeStr.equals("mobile")) {
+                            phoneType = PhoneContactServerResult.PhoneType.MOBILE;
+                        } else if (phoneTypeStr.equals("landline")) {
+                            phoneType = PhoneContactServerResult.PhoneType.LANDLINE;
+                        } else {
+                            throw new JSONException("Invalid `phone_type` value: " + phoneTypeStr);
+                        }
+
+                        PhoneContact inputPhoneContact = phoneContacts.get(i);
+
+                        PhoneContactServerResult serverResult;
+                        if (phoneType != PhoneContactServerResult.PhoneType.MOBILE) {
+                            serverResult = PhoneContactServerResult.createNonMobileResult(inputPhoneContact, phoneType);
+                        } else {
+                            Long userId;
+                            if (obj.isNull("user_id")) {
+                                userId = null;
+                            } else {
+                                userId = obj.getLong("user_id");
+                            }
+                            String avatarUrl = obj.getString("avatar_url");
+                            String canonicalPhoneNumber = obj.getString("phone_number");
+                            serverResult = PhoneContactServerResult.createMobileResult(inputPhoneContact, userId, avatarUrl, canonicalPhoneNumber);
+                        }
+                        results.add(serverResult);
+                    }
+
+                    return new NetworkRequestResult<ArrayList<PhoneContactServerResult>>(results, response);
+                } catch (JSONException e) {
+                    throw APIException.FromJSONException(response, e);
+                }
+            }
+        });
     }
 }
