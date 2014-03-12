@@ -486,6 +486,87 @@ public final class ShotVibeDB {
         }
     }
 
+    public synchronized void addQueriedPhoneContacts(ArrayList<PhoneContactServerResult> contacts) throws SQLException {
+        mConn.beginTransaction();
+        try {
+            for (PhoneContactServerResult contact : contacts) {
+                if (contact.getPhoneType() == PhoneContactServerResult.PhoneType.MOBILE) {
+                    mConn.update(""
+                            + "INSERT OR REPLACE INTO phone_contact (phone_number, last_name, first_name, is_mobile, user_id, avatar_url, canonical_number, query_time)"
+                            + " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                            SQLValues.create()
+                                    .add(contact.getPhoneContact().getPhoneNumber())
+                                    .add(contact.getPhoneContact().getLastName())
+                                    .add(contact.getPhoneContact().getFirstName())
+                                    .add(1)
+                                    .addNullable(contact.getUserId())
+                                    .add(contact.getAvatarUrl())
+                                    .add(contact.getCanonicalPhoneNumber())
+                                    .add(dateTimeToSQLValue(contact.getQueryTime())));
+                } else {
+                    mConn.update(""
+                            + "INSERT OR REPLACE INTO phone_contact (phone_number, last_name, first_name, is_mobile, user_id, avatar_url, canonical_number, query_time)"
+                            + " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                            SQLValues.create()
+                                    .add(contact.getPhoneContact().getPhoneNumber())
+                                    .add(contact.getPhoneContact().getLastName())
+                                    .add(contact.getPhoneContact().getFirstName())
+                                    .add(0)
+                                    .addNull()
+                                    .addNull()
+                                    .addNull()
+                                    .add(dateTimeToSQLValue(contact.getQueryTime())));
+                }
+            }
+            mConn.setTransactionSuccesful();
+        } finally {
+            mConn.endTransaction();
+        }
+    }
+
+    public synchronized HashMap<PhoneContact, PhoneContactServerResult> getAllCachedPhoneContacts() throws SQLException {
+        SQLCursor cursor = mConn.query(""
+                + "SELECT phone_number, last_name, first_name, is_mobile, user_id, avatar_url, canonical_number, query_time"
+                + " FROM phone_contact");
+
+        try {
+            HashMap<PhoneContact, PhoneContactServerResult> results = new HashMap<PhoneContact, PhoneContactServerResult>();
+            while (cursor.moveToNext()) {
+                String phoneNumber = cursor.getString(0);
+                String lastName = cursor.getString(1);
+                String firstName = cursor.getString(2);
+                boolean isMobile = cursor.getInt(3) != 0;
+
+                DateTime queryTime = cursorGetDateTime(cursor, 7);
+
+                PhoneContact phoneContact = new PhoneContact(phoneNumber, lastName, firstName);
+
+                PhoneContactServerResult serverResult;
+                if (isMobile) {
+                    Long userId;
+                    if (cursor.isNull(4)) {
+                        userId = null;
+                    } else {
+                        userId = cursor.getLong(4);
+                    }
+                    String avatarUrl = cursor.getString(5);
+                    String canonicalPhoneNumber = cursor.getString(6);
+                    serverResult = PhoneContactServerResult.createMobileResult(phoneContact, userId, avatarUrl, canonicalPhoneNumber, queryTime);
+                } else {
+                    // TODO Arbitrarily specifying INVALID is not the cleanest. But the phone type
+                    // isn't currently used for anything (other than checking if MOBILE)
+                    PhoneContactServerResult.PhoneType phoneType = PhoneContactServerResult.PhoneType.INVALID;
+
+                    serverResult = PhoneContactServerResult.createNonMobileResult(phoneContact, phoneType, queryTime);
+                }
+                results.put(phoneContact, serverResult);
+            }
+            return results;
+        } finally {
+            cursor.close();
+        }
+    }
+
     private static long dateTimeToSQLValue(DateTime dateTime) {
         return dateTime == null ? null : dateTime.getTimeStamp();
     }

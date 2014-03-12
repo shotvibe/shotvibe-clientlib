@@ -599,6 +599,8 @@ public class ShotVibeAPI {
                     throw APIException.ErrorStatusCodeException(response);
                 }
 
+                DateTime now = DateTime.NowUTC();
+
                 try {
                     ArrayList<PhoneContactServerResult> results = new ArrayList<PhoneContactServerResult>();
                     JSONObject responseObj = response.bodyAsJSONObject();
@@ -621,7 +623,7 @@ public class ShotVibeAPI {
 
                         PhoneContactServerResult serverResult;
                         if (phoneType != PhoneContactServerResult.PhoneType.MOBILE) {
-                            serverResult = PhoneContactServerResult.createNonMobileResult(inputPhoneContact, phoneType);
+                            serverResult = PhoneContactServerResult.createNonMobileResult(inputPhoneContact, phoneType, now);
                         } else {
                             Long userId;
                             if (obj.isNull("user_id")) {
@@ -631,7 +633,7 @@ public class ShotVibeAPI {
                             }
                             String avatarUrl = obj.getString("avatar_url");
                             String canonicalPhoneNumber = obj.getString("phone_number");
-                            serverResult = PhoneContactServerResult.createMobileResult(inputPhoneContact, userId, avatarUrl, canonicalPhoneNumber);
+                            serverResult = PhoneContactServerResult.createMobileResult(inputPhoneContact, userId, avatarUrl, canonicalPhoneNumber, now);
                         }
                         results.add(serverResult);
                     }

@@ -5,26 +5,35 @@ public class PhoneContactsManager implements DevicePhoneContactsLib.DeviceAddres
         void phoneContactsUpdated(ArrayList<PhoneContactDisplayData> phoneContacts);
     }
 
-    public PhoneContactsManager(DevicePhoneContactsLib devicePhoneContactsLib, ShotVibeAPI shotVibeAPI) {
+    public PhoneContactsManager(DevicePhoneContactsLib devicePhoneContactsLib, ShotVibeAPI shotVibeAPI, ShotVibeDB shotVibeDB) {
         if (devicePhoneContactsLib == null) {
             throw new IllegalArgumentException("devicePhoneContactsLib cannot be null");
         }
-
         if (shotVibeAPI == null) {
             throw new IllegalArgumentException("shotVibeAPI cannot be null");
+        }
+        if (shotVibeDB == null) {
+            throw new IllegalArgumentException("shotVibeDB cannot be null");
         }
 
         mDevicePhoneContactsLib = devicePhoneContactsLib;
         mShotVibeAPI = shotVibeAPI;
+        mShotVibeDB = shotVibeDB;
 
         mListener = null;
 
         mCurrentAddressBook = null;
-        mCachedContacts = new HashMap<PhoneContact, PhoneContactServerResult>();
+
+        try {
+            mCachedContacts = shotVibeDB.getAllCachedPhoneContacts();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private final DevicePhoneContactsLib mDevicePhoneContactsLib;
     private final ShotVibeAPI mShotVibeAPI;
+    private final ShotVibeDB mShotVibeDB;
 
     /**
      * Must be called from the main thread
@@ -104,6 +113,9 @@ public class PhoneContactsManager implements DevicePhoneContactsLib.DeviceAddres
         }
     }
 
+    // How long to wait before refreshing a contact since it was last queried (in microseconds)
+    private static final long CONTACT_QUERY_STALE_TIME = 5L * 60L * 1000L * 1000L;
+
     private void notifyListener() {
         final ArrayList<PhoneContactDisplayData> displayContacts = new ArrayList<PhoneContactDisplayData>();
 
@@ -113,6 +125,8 @@ public class PhoneContactsManager implements DevicePhoneContactsLib.DeviceAddres
         }
 
         boolean shouldQuery = false;
+
+        DateTime now = DateTime.NowUTC();
 
         synchronized (mCachedContacts) {
             for (PhoneContact deviceContact : deviceContacts) {
@@ -124,7 +138,11 @@ public class PhoneContactsManager implements DevicePhoneContactsLib.DeviceAddres
                 } else if (cachedServerResult.getPhoneType() == PhoneContactServerResult.PhoneType.MOBILE) {
                     PhoneContactDisplayData entry = PhoneContactDisplayData.createLoaded(deviceContact, cachedServerResult.getUserId(), cachedServerResult.getAvatarUrl());
                     displayContacts.add(entry);
-                    // TODO check if cachedServerResult is old, and if so then set shouldQuery = true
+
+                    // Check if the time when the cached result is old and we need it to be refreshed
+                    if (now.getTimeStamp() - cachedServerResult.getQueryTime().getTimeStamp() > CONTACT_QUERY_STALE_TIME) {
+                        shouldQuery = true;
+                    }
                 }
             }
         }
@@ -159,13 +177,16 @@ public class PhoneContactsManager implements DevicePhoneContactsLib.DeviceAddres
 
             ArrayList<PhoneContact> toQuery = new ArrayList<PhoneContact>();
 
+            DateTime now = DateTime.NowUTC();
 
             for (PhoneContact deviceContact : deviceContacts) {
                 PhoneContactServerResult cachedServerResult = findCachedServerResult(deviceContact);
                 if (cachedServerResult == null) {
                     toQuery.add(deviceContact);
+                } else if (now.getTimeStamp() - cachedServerResult.getQueryTime().getTimeStamp() > CONTACT_QUERY_STALE_TIME) {
+                    // The contact was queried long enough ago that we need to refresh it from the server
+                    toQuery.add(deviceContact);
                 }
-                // TODO If cachedServerResult is old then also add it to toQuery
             }
 
             ArrayList<PhoneContactServerResult> results;
@@ -183,6 +204,12 @@ public class PhoneContactsManager implements DevicePhoneContactsLib.DeviceAddres
             }
 
             notifyListener();
+
+            try {
+                mShotVibeDB.addQueriedPhoneContacts(results);
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
