@@ -7,7 +7,7 @@ public final class PhoneContactServerResult {
         LANDLINE
     }
 
-    public static PhoneContactServerResult createNonMobileResult(PhoneContact phoneContact, PhoneType phoneType) {
+    public static PhoneContactServerResult createNonMobileResult(PhoneContact phoneContact, PhoneType phoneType, DateTime queryTime) {
         if (phoneContact == null) {
             throw new IllegalArgumentException("phoneContact cannot be null");
         }
@@ -17,8 +17,11 @@ public final class PhoneContactServerResult {
         if (phoneType == PhoneType.MOBILE) {
             throw new IllegalArgumentException("phoneType cannot be MOBILE");
         }
+        if (queryTime == null) {
+            throw new IllegalArgumentException("queryTime cannot be null");
+        }
 
-        return new PhoneContactServerResult(phoneContact, phoneType, null, null, null);
+        return new PhoneContactServerResult(phoneContact, phoneType, null, null, null, queryTime);
     }
 
     /**
@@ -30,7 +33,7 @@ public final class PhoneContactServerResult {
      * @param canonicalPhoneNumber The canonical E164 format of the phone number
      * @return A PhoneContactServerResult object
      */
-    public static PhoneContactServerResult createMobileResult(PhoneContact phoneContact, Long userId, String avatarUrl, String canonicalPhoneNumber) {
+    public static PhoneContactServerResult createMobileResult(PhoneContact phoneContact, Long userId, String avatarUrl, String canonicalPhoneNumber, DateTime queryTime) {
         if (phoneContact == null) {
             throw new IllegalArgumentException("phoneContact cannot be null");
         }
@@ -40,8 +43,11 @@ public final class PhoneContactServerResult {
         if (canonicalPhoneNumber == null) {
             throw new IllegalArgumentException("canonicalPhoneNumber cannot be null");
         }
+        if (queryTime == null) {
+            throw new IllegalArgumentException("queryTime cannot be null");
+        }
 
-        return new PhoneContactServerResult(phoneContact, PhoneType.MOBILE, userId, avatarUrl, canonicalPhoneNumber);
+        return new PhoneContactServerResult(phoneContact, PhoneType.MOBILE, userId, avatarUrl, canonicalPhoneNumber, queryTime);
     }
 
     public PhoneContact getPhoneContact() {
@@ -78,16 +84,22 @@ public final class PhoneContactServerResult {
         return mCanonicalPhoneNumber;
     }
 
+    public DateTime getQueryTime() {
+        return mQueryTime;
+    }
+
     private PhoneContactServerResult(PhoneContact phoneContact,
                                      PhoneType phoneType,
                                      Long userId,
                                      String avatarUrl,
-                                     String canonicalPhoneNumber) {
+                                     String canonicalPhoneNumber,
+                                     DateTime queryTime) {
         mPhoneContact = phoneContact;
         mPhoneType = phoneType;
         mUserId = userId;
         mAvatarUrl = avatarUrl;
         mCanonicalPhoneNumber = canonicalPhoneNumber;
+        mQueryTime = queryTime;
     }
 
     private final PhoneContact mPhoneContact;
@@ -98,4 +110,6 @@ public final class PhoneContactServerResult {
     private final String mAvatarUrl;
 
     private final String mCanonicalPhoneNumber;
+
+    private final DateTime mQueryTime;
 }

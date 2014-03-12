@@ -40,6 +40,15 @@ static NSCalendar *calendar;
 }
 
 
++ (SLDateTime *)NowUTC
+{
+    NSTimeInterval seconds = [[NSDate date] timeIntervalSince1970];
+    long long secondsLong = seconds;
+
+    return [[SLDateTime alloc] initWithTimeStamp:secondsLong * 1000000LL];
+}
+
+
 - (long long int)getTimeStamp
 {
     return timeStamp_;

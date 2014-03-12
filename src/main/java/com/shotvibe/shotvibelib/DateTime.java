@@ -20,6 +20,12 @@ public final class DateTime {
         return new DateTime(timeStamp);
     }
 
+    public static DateTime NowUTC() {
+        long millis = System.currentTimeMillis();
+        long micros = millis * 1000;
+        return new DateTime(micros);
+    }
+
     public long getTimeStamp() {
         return mTimeStamp;
     }
