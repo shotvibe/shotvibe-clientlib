@@ -330,6 +330,37 @@ public class ShotVibeAPI {
         });
     }
 
+    /**
+     * Change the name of an album
+     *
+     * @param albumId
+     * @param newAlbumName
+     * @return 'true' if album name successfully changed. 'false' if the name cannot be changed
+     * because the album was created by a different user
+     * @throws APIException
+     */
+    public boolean albumChangeName(final long albumId, final String newAlbumName) throws APIException {
+        return runAndLogNetworkRequestAction(new NetworkRequestAction<Boolean>() {
+            @Override
+            public NetworkRequestResult<Boolean> runAction() throws APIException, HTTPException {
+                JSONObject data = new JSONObject();
+                data.put("name", newAlbumName);
+
+                HTTPResponse response = sendRequest("PUT", "/albums/" + albumId + "/name/", data);
+
+                final int HTTP_FORBIDDEN = 403;
+                if (response.getStatusCode() == HTTP_FORBIDDEN) {
+                    return new NetworkRequestResult<Boolean>(false, response);
+                }
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+                return new NetworkRequestResult<Boolean>(true, response);
+            }
+        });
+    }
+
     public ArrayList<String> photosUploadRequest(final int numPhotos) throws APIException {
         if (numPhotos < 1) {
             throw new IllegalArgumentException("numPhotos must be at least 1: " + numPhotos);
