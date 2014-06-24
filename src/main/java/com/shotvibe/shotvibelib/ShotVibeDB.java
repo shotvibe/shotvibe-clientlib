@@ -339,6 +339,9 @@ public final class ShotVibeDB {
      * @param albumContents Must contain only photos of type AlbumServerPhoto, no AlbumUploadingPhotos allowed!
      */
     public synchronized void setAlbumContents(long albumId, AlbumContents albumContents) throws SQLException {
+        Log.CLSLog("setAlbumContents: " + albumId);
+        Integer zero = null;
+        zero.toString();
         mConn.beginTransaction();
         try {
             mConn.update(""
