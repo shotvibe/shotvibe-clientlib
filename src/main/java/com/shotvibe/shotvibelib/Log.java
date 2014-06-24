@@ -10,4 +10,8 @@ public final class Log {
         android.util.Log.d(tag, message);
     }
 
+    public static void CLSLog(String message) {
+        // TODO:
+        // Crashlytics.log(message);
+    }
 }

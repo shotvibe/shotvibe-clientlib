@@ -7,6 +7,7 @@
 }
 
 + (void)dWithNSString:(NSString *)tag withNSString:(NSString *)message;
++ (void)CLSLogWithNSString:(NSString *)message;
 - (id)init;
 @end
 
