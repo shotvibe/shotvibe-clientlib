@@ -21,6 +21,7 @@ CLANG_FLAGS = [
     "-std=gnu99",
     "-fobjc-arc",
     "-Os",
+    "-g",
     "-fstrict-aliasing"]
 
 
