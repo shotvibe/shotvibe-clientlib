@@ -582,6 +582,25 @@ public class ShotVibeAPI {
         });
     }
 
+    public void glancePhoto(final String photoId, final String emoticonName) throws APIException {
+        runAndLogNetworkRequestAction(new NetworkRequestAction<Void>() {
+            @Override
+            public NetworkRequestResult<Void> runAction() throws APIException, HTTPException {
+                JSONObject requestBody = new JSONObject();
+
+                requestBody.put("emoticon_name", emoticonName);
+
+                HTTPResponse response = sendRequest("PUT", "/photos/" + photoId + "/glance/", requestBody);
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+
+                return new NetworkRequestResult<Void>(null, response);
+            }
+        });
+    }
+
     public void deletePhotos(final Iterable<String> photoIds) throws APIException {
         runAndLogNetworkRequestAction(new NetworkRequestAction<Object>() {
             @Override
