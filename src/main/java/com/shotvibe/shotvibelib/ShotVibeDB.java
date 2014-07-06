@@ -168,7 +168,11 @@ public final class ShotVibeDB {
                 String photoAuthorNickname = cursor.getString(4);
                 String photoAuthorAvatarUrl = cursor.getString(5);
                 AlbumUser photoAuthor = new AlbumUser(photoAuthorUserId, photoAuthorNickname, photoAuthorAvatarUrl);
-                results.add(new AlbumPhoto(new AlbumServerPhoto(photoId, photoUrl, photoAuthor, photoDateAdded)));
+
+                // TODO Load real values from DB
+                ArrayList<AlbumPhotoGlance> dummy = new ArrayList<AlbumPhotoGlance>();
+
+                results.add(new AlbumPhoto(new AlbumServerPhoto(photoId, photoUrl, photoAuthor, photoDateAdded, dummy)));
             }
             return results;
         } finally {
@@ -295,7 +299,31 @@ public final class ShotVibeDB {
                     String photoAuthorNickname = cursor.getString(4);
                     String photoAuthorAvatarUrl = cursor.getString(5);
                     AlbumUser photoAuthor = new AlbumUser(photoAuthorUserId, photoAuthorNickname, photoAuthorAvatarUrl);
-                    albumPhotos.add(new AlbumPhoto(new AlbumServerPhoto(photoId, photoUrl, photoAuthor, photoDateAdded)));
+
+                    ArrayList<AlbumPhotoGlance> photoGlances = new ArrayList<AlbumPhotoGlance>();
+                    SQLCursor gCursor = mConn.query(""
+                            + "SELECT photo_glance.author_id, user.nickname, user.avatar_url, photo_glance.emoticon_name"
+                            + " FROM photo_glance"
+                            + " LEFT OUTER JOIN user"
+                            + " ON photo_glance.author_id = user.user_id"
+                            + " WHERE photo_glance.photo_id=?"
+                            + " ORDER BY photo_glance.num ASC",
+                            SQLValues.create()
+                                    .add(photoId));
+                    try {
+                        while (gCursor.moveToNext()) {
+                            long authorId = gCursor.getLong(0);
+                            String authorNickname = gCursor.getString(1);
+                            String authorAvatarUrl = gCursor.getString(2);
+                            String emoticonName = gCursor.getString(3);
+                            AlbumUser author = new AlbumUser(authorId, authorNickname, authorAvatarUrl);
+                            photoGlances.add(new AlbumPhotoGlance(author, emoticonName));
+                        }
+                    } finally {
+                        gCursor.close();
+                    }
+
+                    albumPhotos.add(new AlbumPhoto(new AlbumServerPhoto(photoId, photoUrl, photoAuthor, photoDateAdded, photoGlances)));
                 }
             } finally {
                 cursor.close();
@@ -384,6 +412,53 @@ public final class ShotVibeDB {
 
                 AlbumUser user = photo.getAuthor();
                 allUsers.put(user.getMemberId(), user);
+
+                // Save Photo Glances:
+
+                // Keep track of all the new authorIds in an efficient data structure
+                HashSet<Long> authorIds = new HashSet<Long>();
+
+                int glanceNum = 0;
+                for (AlbumPhotoGlance glance : photo.getGlances()) {
+                    AlbumUser glanceAuthor = glance.getAuthor();
+
+                    authorIds.add(glanceAuthor.getMemberId());
+
+                    mConn.update(""
+                                    + "INSERT OR REPLACE INTO photo_glance (photo_id, author_id, emoticon_name, num)"
+                                    + " VALUES (?, ?, ?, ?)",
+                            SQLValues.create()
+                                    .add(photo.getId())
+                                    .add(glanceAuthor.getMemberId())
+                                    .add(glance.getEmoticonName())
+                                    .add(glanceNum));
+                    glanceNum++;
+
+                    allUsers.put(glanceAuthor.getMemberId(), glanceAuthor);
+                }
+
+                // Delete any old rows in the database that are not in authorIds:
+                SQLCursor glancesCursor = mConn.query(""
+                                + "SELECT author_id"
+                                + " FROM photo_glance"
+                                + " WHERE photo_id=?",
+                        SQLValues.create()
+                                .add(photo.getId()));
+                try {
+                    while (glancesCursor.moveToNext()) {
+                        long id = glancesCursor.getLong(0);
+                        if (!authorIds.contains(id)) {
+                            mConn.update(""
+                                            + "DELETE FROM photo_glance"
+                                            + " WHERE photo_id=? AND author_id=?",
+                                    SQLValues.create()
+                                            .add(photo.getId())
+                                            .add(id));
+                        }
+                    }
+                } finally {
+                    glancesCursor.close();
+                }
             }
 
             // Delete any old rows in the database that are not in photIds:

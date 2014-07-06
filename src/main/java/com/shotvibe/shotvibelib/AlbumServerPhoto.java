@@ -1,7 +1,7 @@
 package com.shotvibe.shotvibelib;
 
 public class AlbumServerPhoto {
-    public AlbumServerPhoto(String id, String url, AlbumUser author, DateTime dateAdded) {
+    public AlbumServerPhoto(String id, String url, AlbumUser author, DateTime dateAdded, ArrayList<AlbumPhotoGlance> glances) {
         if (id == null) {
             throw new IllegalArgumentException("id cannot be null");
         }
@@ -14,11 +14,15 @@ public class AlbumServerPhoto {
         if (dateAdded == null) {
             throw new IllegalArgumentException("dateAdded cannot be null");
         }
+        if (glances == null) {
+            throw new IllegalArgumentException("glances cannot be null");
+        }
 
         mId = id;
         mUrl = url;
         mAuthor = author;
         mDateAdded = dateAdded;
+        mGlances = glances;
     }
 
     public String getId() {
@@ -35,6 +39,10 @@ public class AlbumServerPhoto {
 
     public DateTime getDateAdded() {
         return mDateAdded;
+    }
+
+    public ArrayList<AlbumPhotoGlance> getGlances() {
+        return mGlances;
     }
 
     public boolean isNew(DateTime lastAccess, long userId) {
@@ -56,4 +64,6 @@ public class AlbumServerPhoto {
     private final AlbumUser mAuthor;
 
     private final DateTime mDateAdded;
+
+    private ArrayList<AlbumPhotoGlance> mGlances;
 }

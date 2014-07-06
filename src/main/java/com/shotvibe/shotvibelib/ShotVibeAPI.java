@@ -141,6 +141,14 @@ public class ShotVibeAPI {
         }
     }
 
+    private static AlbumUser parseAlbumUser(JSONObject userObj) throws JSONException {
+        long id = userObj.getLong("id");
+        String nickname = userObj.getString("nickname");
+        String avatarUrl = userObj.getString("avatar_url");
+
+        return new AlbumUser(id, nickname, avatarUrl);
+    }
+
     private ArrayList<AlbumPhoto> parsePhotoList(JSONArray photos_array) throws JSONException {
         ArrayList<AlbumPhoto> result = new ArrayList<AlbumPhoto>();
         for (int i = 0; i < photos_array.length(); ++i) {
@@ -149,14 +157,19 @@ public class ShotVibeAPI {
             String photo_url = photo_obj.getString("photo_url");
             DateTime photo_date_created = parseDate(photo_obj, "date_created");
 
-            JSONObject author_obj = photo_obj.getJSONObject("author");
+            AlbumUser author = parseAlbumUser(photo_obj.getJSONObject("author"));
 
-            long authorId = author_obj.getLong("id");
-            String authorNickname = author_obj.getString("nickname");
-            String authorAvatarUrl = author_obj.getString("avatar_url");
-            AlbumUser author = new AlbumUser(authorId, authorNickname, authorAvatarUrl);
+            JSONArray glancesArray = photo_obj.getJSONArray("glances");
+            ArrayList<AlbumPhotoGlance> glances = new ArrayList<AlbumPhotoGlance>();
+            for (int j = 0; j < glancesArray.length(); ++j) {
+                JSONObject glanceObj = glancesArray.getJSONObject(j);
+                String emoticonName = glanceObj.getString("emoticon_name");
+                AlbumUser glanceAuthor = parseAlbumUser(glanceObj.getJSONObject("author"));
 
-            result.add(new AlbumPhoto(new AlbumServerPhoto(photo_id, photo_url, author, photo_date_created)));
+                glances.add(new AlbumPhotoGlance(glanceAuthor, emoticonName));
+            }
+
+            result.add(new AlbumPhoto(new AlbumServerPhoto(photo_id, photo_url, author, photo_date_created, glances)));
         }
         return result;
     }
