@@ -6,7 +6,7 @@ buildscript {
         classpath rootProject.ext.gradlePluginClasspath
     }
 }
-apply plugin: 'android-library'
+apply plugin: 'com.android.library'
 
 repositories {
     mavenCentral()
