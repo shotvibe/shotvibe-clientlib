@@ -8,7 +8,7 @@ public final class ShotVibeDB {
         mConn = conn;
     }
 
-    public static final int DATABASE_VERSION = 4;
+    public static final int DATABASE_VERSION = 5;
 
     /**
      * Should be called after populateNewDB or upgradeDB has been called (if one of them was necessary)
@@ -98,8 +98,10 @@ public final class ShotVibeDB {
 
     public synchronized ArrayList<AlbumSummary> getAlbumList() throws SQLException {
         SQLCursor cursor = mConn.query(""
-                + "SELECT album_id, name, last_updated, num_new_photos, last_access"
+                + "SELECT album_id, name, date_created, last_updated, num_new_photos, last_access, user.user_id, user.nickname, user.avatar_url"
                 + " FROM album"
+                + " LEFT OUTER JOIN user"
+                + " ON album.creator_id = user.user_id"
                 + " ORDER BY last_updated DESC");
 
         try {
@@ -107,15 +109,20 @@ public final class ShotVibeDB {
             while (cursor.moveToNext()) {
                 long id = cursor.getLong(0);
                 String name = cursor.getString(1);
-                DateTime lastUpdated = cursorGetDateTime(cursor, 2);
+                DateTime dateCreated = cursorGetDateTime(cursor, 2);
+                DateTime lastUpdated = cursorGetDateTime(cursor, 3);
                 final String etag = null;
-                // TODO Add real date for "dateCreated"
-                DateTime dummyDateCreated = DateTime.ParseISO8601("2000-01-01T00:00:00.000Z");
                 final int NUM_LATEST_PHOTOS = 2;
-                long numNewPhotos = cursor.getLong(3);
-                DateTime lastAccess = cursor.isNull(2) ? null : cursorGetDateTime(cursor, 2);
+                long numNewPhotos = cursor.getLong(4);
+                DateTime lastAccess = cursor.isNull(5) ? null : cursorGetDateTime(cursor, 5);
                 ArrayList<AlbumPhoto> latestPhotos = getLatestPhotos(id, NUM_LATEST_PHOTOS);
-                AlbumSummary album = new AlbumSummary(id, etag, name, dummyDateCreated, lastUpdated, numNewPhotos, lastAccess, latestPhotos);
+
+                long creatorAuthorUserId = cursor.getLong(6);
+                String creatorAuthorNickname = cursor.getString(7);
+                String creatorAuthorAvatarUrl = cursor.getString(8);
+                AlbumUser creator = new AlbumUser(creatorAuthorUserId, creatorAuthorNickname, creatorAuthorAvatarUrl);
+
+                AlbumSummary album = new AlbumSummary(id, etag, name, creator, dateCreated, lastUpdated, numNewPhotos, lastAccess, latestPhotos);
                 results.add(album);
             }
             return results;
@@ -188,14 +195,18 @@ public final class ShotVibeDB {
             for (AlbumSummary album : albums) {
                 albumIds.add(album.getId());
 
+                saveUserToDB(mConn, album.getCreator());
+
                 // First try updating an existing row, in order to not erase an existing etag value
                 mConn.update(""
                         + "UPDATE album"
-                        + " SET album_id=?, name=?, last_updated=?, num_new_photos=?, last_access=?"
+                        + " SET album_id=?, name=?, creator_id=?, date_created=?, last_updated=?, num_new_photos=?, last_access=?"
                         + " WHERE album_id=?",
                         SQLValues.create()
                                 .add(album.getId())
                                 .add(album.getName())
+                                .add(album.getCreator().getMemberId())
+                                .add(dateTimeToSQLValue(album.getDateCreated()))
                                 .add(dateTimeToSQLValue(album.getDateUpdated()))
                                 .add(album.getNumNewPhotos())
                                 .addNullable(album.getLastAccess() == null ? null : dateTimeToSQLValue(album.getLastAccess()))
@@ -210,11 +221,13 @@ public final class ShotVibeDB {
                     // just cause the album to be unnecessary refreshed one more time)
 
                     mConn.update(""
-                            + "INSERT OR REPLACE INTO album (album_id, name, last_updated, num_new_photos, last_access)"
-                            + " VALUES (?, ?, ?, ?, ?)",
+                                    + "INSERT OR REPLACE INTO album (album_id, name, creator_id, date_created, last_updated, num_new_photos, last_access)"
+                                    + " VALUES (?, ?, ?, ?, ?, ?, ?)",
                             SQLValues.create()
                                     .add(album.getId())
                                     .add(album.getName())
+                                    .add(album.getCreator().getMemberId())
+                                    .add(dateTimeToSQLValue(album.getDateCreated()))
                                     .add(dateTimeToSQLValue(album.getDateUpdated()))
                                     .add(album.getNumNewPhotos())
                                     .addNullable(album.getLastAccess() == null ? null : dateTimeToSQLValue(album.getLastAccess())));
@@ -252,17 +265,21 @@ public final class ShotVibeDB {
         try {
             SQLCursor cursor;
             cursor = mConn.query(""
-                    + "SELECT name, last_updated, num_new_photos, last_access"
+                    + "SELECT name, date_created, last_updated, num_new_photos, last_access, user.user_id, user.nickname, user.avatar_url"
                     + " FROM album"
+                    + " LEFT OUTER JOIN user"
+                    + " ON album.creator_id = user.user_id"
                     + " WHERE album_id=?",
                     SQLValues.create()
                             .add(albumId));
 
             String albumName;
+            DateTime albumDateCreated;
             DateTime albumLastUpdated;
             String albumEtag;
             long albumNumNewPhotos;
             DateTime albumLastAccess;
+            AlbumUser albumCreator;
 
             try {
                 if (!cursor.moveToNext()) {
@@ -271,10 +288,16 @@ public final class ShotVibeDB {
                 }
 
                 albumName = cursor.getString(0);
-                albumLastUpdated = cursorGetDateTime(cursor, 1);
+                albumDateCreated = cursorGetDateTime(cursor, 1);
+                albumLastUpdated = cursorGetDateTime(cursor, 2);
                 albumEtag = null;
-                albumNumNewPhotos = cursor.getLong(2);
-                albumLastAccess = cursor.isNull(3) ? null : cursorGetDateTime(cursor, 3);
+                albumNumNewPhotos = cursor.getLong(3);
+                albumLastAccess = cursor.isNull(4) ? null : cursorGetDateTime(cursor, 4);
+
+                long creatorAuthorUserId = cursor.getLong(5);
+                String creatorAuthorNickname = cursor.getString(6);
+                String creatorAuthorAvatarUrl = cursor.getString(7);
+                albumCreator = new AlbumUser(creatorAuthorUserId, creatorAuthorNickname, creatorAuthorAvatarUrl);
             } finally {
                 cursor.close();
             }
@@ -352,11 +375,8 @@ public final class ShotVibeDB {
                 cursor.close();
             }
 
-            // TODO Add real date for "dateCreated"
-            DateTime dummyDateCreated = DateTime.ParseISO8601("2000-01-01T00:00:00.000Z");
-
             mConn.setTransactionSuccesful();
-            return new AlbumContents(albumId, albumEtag, albumName, dummyDateCreated, albumLastUpdated, albumNumNewPhotos, albumLastAccess, albumPhotos, albumMembers);
+            return new AlbumContents(albumId, albumEtag, albumName, albumCreator, albumDateCreated, albumLastUpdated, albumNumNewPhotos, albumLastAccess, albumPhotos, albumMembers);
         } finally {
             mConn.endTransaction();
         }
@@ -369,12 +389,16 @@ public final class ShotVibeDB {
     public synchronized void setAlbumContents(long albumId, AlbumContents albumContents) throws SQLException {
         mConn.beginTransaction();
         try {
+            saveUserToDB(mConn, albumContents.getCreator());
+
             mConn.update(""
-                    + "INSERT OR REPLACE INTO album (album_id, name, last_updated, last_etag, num_new_photos, last_access)"
-                    + " VALUES (?, ?, ?, ?, ?, ?)",
+                    + "INSERT OR REPLACE INTO album (album_id, name, creator_id, date_created, last_updated, last_etag, num_new_photos, last_access)"
+                    + " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                     SQLValues.create()
                             .add(albumContents.getId())
                             .add(albumContents.getName())
+                            .add(albumContents.getCreator().getMemberId())
+                            .add(dateTimeToSQLValue(albumContents.getDateCreated()))
                             .add(dateTimeToSQLValue(albumContents.getDateUpdated()))
                             .add(albumContents.getEtag())
                             .add(albumContents.getNumNewPhotos())
@@ -529,19 +553,23 @@ public final class ShotVibeDB {
             for (Map.Entry<Long, AlbumUser> entry : allUsers.entrySet()) {
                 AlbumUser user = entry.getValue();
 
-                mConn.update(""
-                        + "INSERT OR REPLACE INTO user (user_id, nickname, avatar_url)"
-                        + "VALUES (?, ?, ?)",
-                        SQLValues.create()
-                                .add(user.getMemberId())
-                                .add(user.getMemberNickname())
-                                .add(user.getMemberAvatarUrl()));
+                saveUserToDB(mConn, user);
             }
 
             mConn.setTransactionSuccesful();
         } finally {
             mConn.endTransaction();
         }
+    }
+
+    private static void saveUserToDB(SQLConnection conn, AlbumUser user) throws SQLException {
+        conn.update(""
+                        + "INSERT OR REPLACE INTO user (user_id, nickname, avatar_url)"
+                        + " VALUES (?, ?, ?)",
+                SQLValues.create()
+                        .add(user.getMemberId())
+                        .add(user.getMemberNickname())
+                        .add(user.getMemberAvatarUrl()));
     }
 
     public synchronized void setAlbumLastAccess(long albumId, DateTime lastAccess) throws SQLException {

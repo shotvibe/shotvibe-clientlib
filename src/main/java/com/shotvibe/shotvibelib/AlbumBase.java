@@ -1,9 +1,12 @@
 package com.shotvibe.shotvibelib;
 
 public class AlbumBase {
-    public AlbumBase(long id, String etag, String name, DateTime dateCreated, DateTime dateUpdated, long numNewPhotos, DateTime lastAccess) {
+    public AlbumBase(long id, String etag, String name, AlbumUser creator, DateTime dateCreated, DateTime dateUpdated, long numNewPhotos, DateTime lastAccess) {
         if (name == null) {
             throw new IllegalArgumentException("name cannot be null");
+        }
+        if (creator == null) {
+            throw new IllegalArgumentException("creator cannot be null");
         }
         if (dateCreated == null) {
             throw new IllegalArgumentException("dateCreated cannot be null");
@@ -15,6 +18,7 @@ public class AlbumBase {
         mId = id;
         mEtag = etag;
         mName = name;
+        mCreator = creator;
         mDateCreated = dateCreated;
         mDateUpdated = dateUpdated;
         mNumNewPhotos = numNewPhotos;
@@ -31,6 +35,10 @@ public class AlbumBase {
 
     public String getName() {
         return mName;
+    }
+
+    public AlbumUser getCreator() {
+        return mCreator;
     }
 
     public DateTime getDateCreated() {
@@ -52,6 +60,7 @@ public class AlbumBase {
     private final long mId;
     private final String mEtag;
     private final String mName;
+    private final AlbumUser mCreator;
     private final DateTime mDateCreated;
     private final DateTime mDateUpdated;
     private final long mNumNewPhotos;

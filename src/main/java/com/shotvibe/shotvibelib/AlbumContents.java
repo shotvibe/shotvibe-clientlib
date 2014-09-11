@@ -2,8 +2,8 @@ package com.shotvibe.shotvibelib;
 
 public class AlbumContents extends AlbumBase {
 
-    public AlbumContents(long id, String etag, String name, DateTime dateCreated, DateTime dateUpdated, long numNewPhotos, DateTime lastAccess, ArrayList<AlbumPhoto> photos, ArrayList<AlbumMember> members) {
-        super(id, etag, name, dateCreated, dateUpdated, numNewPhotos, lastAccess);
+    public AlbumContents(long id, String etag, String name, AlbumUser creator, DateTime dateCreated, DateTime dateUpdated, long numNewPhotos, DateTime lastAccess, ArrayList<AlbumPhoto> photos, ArrayList<AlbumMember> members) {
+        super(id, etag, name, creator, dateCreated, dateUpdated, numNewPhotos, lastAccess);
 
         if (photos == null) {
             throw new IllegalArgumentException("photos cannot be null");

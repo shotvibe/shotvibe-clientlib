@@ -194,6 +194,8 @@ public class ShotVibeAPI {
                         String etag = albumObj.getString("etag");
                         long id = albumObj.getLong("id");
                         String name = albumObj.getString("name");
+                        AlbumUser creator = parseAlbumUser(albumObj.getJSONObject("creator"));
+                        DateTime date_created = parseDate(albumObj, "date_created");
                         DateTime date_updated = parseDate(albumObj, "last_updated");
                         ArrayList<AlbumPhoto> latestPhotos = parsePhotoList(albumObj.getJSONArray("latest_photos"));
                         long num_new_photos = albumObj.getLong("num_new_photos");
@@ -201,8 +203,7 @@ public class ShotVibeAPI {
                         if (!albumObj.isNull("last_access")) {
                             last_access = parseDate(albumObj, "last_access");
                         }
-                        DateTime dummyDateCreated = DateTime.ParseISO8601("2000-01-01T00:00:00.000Z");
-                        AlbumSummary newAlbum = new AlbumSummary(id, etag, name, dummyDateCreated, date_updated, num_new_photos, last_access, latestPhotos);
+                        AlbumSummary newAlbum = new AlbumSummary(id, etag, name, creator, date_created, date_updated, num_new_photos, last_access, latestPhotos);
                         result.add(newAlbum);
                     }
                 } catch (JSONException e) {
@@ -273,7 +274,7 @@ public class ShotVibeAPI {
         long id = obj.getLong("id");
 
         String name = obj.getString("name");
-
+        AlbumUser creator = parseAlbumUser(obj.getJSONObject("creator"));
         DateTime date_created = parseDate(obj, "date_created");
         DateTime date_updated = parseDate(obj, "last_updated");
 
@@ -309,7 +310,7 @@ public class ShotVibeAPI {
             members.add(new AlbumMember(user, inviteStatus));
         }
 
-        return new AlbumContents(id, etag, name, date_created, date_updated, num_new_photos, last_access, photos, members);
+        return new AlbumContents(id, etag, name, creator, date_created, date_updated, num_new_photos, last_access, photos, members);
     }
 
     public AlbumContents createNewBlankAlbum(final String albumName) throws APIException {
