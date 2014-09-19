@@ -11,5 +11,4 @@
 @end
 
 typedef SLLog ComShotvibeShotvibelibLog;
-
 #endif // _SLLog_H_
