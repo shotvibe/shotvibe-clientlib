@@ -115,7 +115,7 @@ public final class JSONObject {
         }
 
         try {
-            mObj.putOpt(key, null);
+            mObj.put(key, org.json.JSONObject.NULL);
         } catch (org.json.JSONException e) {
             throw new RuntimeException("Impossible Happened", e);
         }
