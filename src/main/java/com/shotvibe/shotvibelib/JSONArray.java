@@ -113,16 +113,28 @@ public class JSONArray {
     }
 
     public JSONArray put(String value) {
+        if (value == null) {
+            throw new IllegalArgumentException("value cannot be null");
+        }
+
         mArray.put(value);
         return this;
     }
 
     public JSONArray put(JSONObject value) {
+        if (value == null) {
+            throw new IllegalArgumentException("value cannot be null");
+        }
+
         mArray.put(value.mObj);
         return this;
     }
 
     public JSONArray put(String key, JSONArray value) {
+        if (value == null) {
+            throw new IllegalArgumentException("value cannot be null");
+        }
+
         mArray.put(value.mArray);
         return this;
     }
