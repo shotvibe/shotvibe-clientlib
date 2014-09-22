@@ -70,7 +70,7 @@ public class JSONArray {
     }
 
     public JSONObject getJSONObject(int index) throws JSONException {
-        org.json.JSONObject obj = null;
+        org.json.JSONObject obj;
         try {
             obj = mArray.getJSONObject(index);
             return new JSONObject(obj);
