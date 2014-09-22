@@ -141,9 +141,6 @@ public class JSONArray {
 
 
     /**
-     * This does not have an Objective-C implementation, and should therefore only be called from
-     * native Java code that is not meant to be cross-platform
-     *
      * @param data JSON string
      * @return JSONArray
      * @throws JSONException If the string is not valid JSON, or not a JSON array
@@ -172,8 +169,6 @@ public class JSONArray {
 
     /**
      * Package Level visibility. Only needs to be called from JSONObject
-     *
-     * @param array
      */
     JSONArray(org.json.JSONArray array) {
         mArray = array;

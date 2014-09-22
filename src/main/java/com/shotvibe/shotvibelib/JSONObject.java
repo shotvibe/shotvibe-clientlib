@@ -235,9 +235,6 @@ public final class JSONObject {
     }
 
     /**
-     * This does not have an Objective-C implementation, and should therefore only be called from
-     * native Java code that is not meant to be cross-platform
-     *
      * @param data JSON string
      * @return JSONObject
      * @throws JSONException If the string is not valid JSON, or not a JSON object
@@ -266,8 +263,6 @@ public final class JSONObject {
 
     /**
      * Package Level visibility. Only needs to be called from JSONArray
-     *
-     * @param obj
      */
     JSONObject(org.json.JSONObject obj) {
         mObj = obj;

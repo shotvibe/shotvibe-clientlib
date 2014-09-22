@@ -1,6 +1,7 @@
 #include "JSONArray.h"
 #include "JSONException.h"
 #include "JSONObject.h"
+#include "java/lang/IllegalStateException.h"
 
 // Same as in JSONArray.m
 static inline SLJSONObject * toSLJSONObject(id value)
@@ -209,6 +210,26 @@ static inline NSNumber * toNumber(id value)
 {
     [dict_ setObject:value->array_ forKey:key];
     return self;
+}
+
+
++ (SLJSONObject *)ParseWithNSString:(NSString *)data
+{
+    NSData *d = [data dataUsingEncoding:NSUTF8StringEncoding];
+    return [SLJSONObject Parse:d];
+}
+
+
+- (NSString *)description
+{
+    NSError *jsonError;
+    NSData *data = [NSJSONSerialization dataWithJSONObject:dict_ options:kNilOptions error:&jsonError];
+    if (!data) {
+        // This should never happen, since SLJSONObject is built using a safe API that enforces correct JSON
+        @throw [[JavaLangIllegalStateException alloc] initWithNSString:[NSString stringWithFormat:@"Impossible happened: %@", jsonError.description]];
+    }
+
+    return [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
 }
 
 

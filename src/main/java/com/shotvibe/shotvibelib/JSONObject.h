@@ -36,6 +36,8 @@
                  withSLJSONObject:(SLJSONObject *)value;
 - (SLJSONObject *)putWithNSString:(NSString *)key
                   withSLJSONArray:(SLJSONArray *)value;
++ (SLJSONObject *)ParseWithNSString:(NSString *)data;
+- (NSString *)description;
 
 // Should be called only from Objective-C code
 - (id)initWithDictionary:(NSMutableDictionary *)dictionary;
