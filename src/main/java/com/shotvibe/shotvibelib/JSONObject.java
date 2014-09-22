@@ -187,6 +187,9 @@ public final class JSONObject {
         if (key == null) {
             throw new IllegalArgumentException("key cannot be null");
         }
+        if (value == null) {
+            throw new IllegalArgumentException("value cannot be null");
+        }
 
         try {
             mObj.put(key, value);
@@ -201,6 +204,9 @@ public final class JSONObject {
         if (key == null) {
             throw new IllegalArgumentException("key cannot be null");
         }
+        if (value == null) {
+            throw new IllegalArgumentException("value cannot be null");
+        }
 
         try {
             mObj.put(key, value.mObj);
@@ -214,6 +220,9 @@ public final class JSONObject {
     public JSONObject put(String key, JSONArray value) {
         if (key == null) {
             throw new IllegalArgumentException("key cannot be null");
+        }
+        if (value == null) {
+            throw new IllegalArgumentException("value cannot be null");
         }
 
         try {
