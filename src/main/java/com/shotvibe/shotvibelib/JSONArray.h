@@ -28,8 +28,7 @@
 - (SLJSONArray *)putWithLong:(long long int)value;
 - (SLJSONArray *)putWithNSString:(NSString *)value;
 - (SLJSONArray *)putWithSLJSONObject:(SLJSONObject *)value;
-- (SLJSONArray *)putWithNSString:(NSString *)key
-                 withSLJSONArray:(SLJSONArray *)value;
+- (SLJSONArray *)putWithSLJSONArray:(SLJSONArray *)value;
 
 // Should be called only from Objective-C code
 - (id)initWithArray:(NSMutableArray *)array;

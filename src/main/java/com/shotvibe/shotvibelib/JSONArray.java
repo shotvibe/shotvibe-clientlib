@@ -130,7 +130,7 @@ public class JSONArray {
         return this;
     }
 
-    public JSONArray put(String key, JSONArray value) {
+    public JSONArray put(JSONArray value) {
         if (value == null) {
             throw new IllegalArgumentException("value cannot be null");
         }

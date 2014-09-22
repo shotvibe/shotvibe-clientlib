@@ -191,8 +191,7 @@ static inline NSNumber * toNumber(id value)
 }
 
 
-- (SLJSONArray *)putWithNSString:(NSString *)key
-                 withSLJSONArray:(SLJSONArray *)value
+- (SLJSONArray *)putWithSLJSONArray:(SLJSONArray *)value
 {
     [array_ addObject:value->array_];
     return self;
