@@ -80,7 +80,7 @@ public class JSONArray {
     }
 
     public JSONArray putNull() {
-        mArray.put(null);
+        mArray.put(org.json.JSONObject.NULL);
         return this;
     }
 
