@@ -7,7 +7,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public final class ThreadUtil {
-    interface Runnable {
+    public interface Runnable {
         void run();
     }
 
