@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 public class AlbumManager implements UploadManager.Listener {
-    public AlbumManager(ShotVibeAPI shotVibeAPI, ShotVibeDB shotVibeDB, UploadManager uploadManager) {
+    public AlbumManager(ShotVibeAPI shotVibeAPI, ShotVibeDB shotVibeDB, PhotoDownloadManager photoDownloadManager, UploadManager uploadManager) {
         if (shotVibeAPI == null) {
             throw new IllegalArgumentException("shotVibeAPI cannot be null");
         }
@@ -16,6 +16,7 @@ public class AlbumManager implements UploadManager.Listener {
         }
         mShotVibeAPI = shotVibeAPI;
         mShotVibeDB = shotVibeDB;
+        mPhotoDownloadManager = photoDownloadManager;
         mUploadManager = uploadManager;
 
         mUploadManager.setListener(this);
@@ -285,6 +286,14 @@ public class AlbumManager implements UploadManager.Listener {
                 } catch (SQLException e) {
                     throw new RuntimeException(e);
                 }
+
+                // Start downloading the photos in the background
+                for (AlbumPhoto p : result.albumContents.getPhotos()) {
+                    String photoId = p.getServerPhoto().getId();
+                    String photoUrl = p.getServerPhoto().getUrl();
+                    mPhotoDownloadManager.queuePhotoForDownload(photoId, photoUrl, true, true);
+                    mPhotoDownloadManager.queuePhotoForDownload(photoId, photoUrl, false, false);
+                }
             }
 
             ThreadUtil.runInMainThread(new ThreadUtil.Runnable() {
@@ -466,6 +475,7 @@ public class AlbumManager implements UploadManager.Listener {
 
     private final ShotVibeAPI mShotVibeAPI;
     private final ShotVibeDB mShotVibeDB;
+    private final PhotoDownloadManager mPhotoDownloadManager;
     private final UploadManager mUploadManager;
     private final ThreadUtil.Executor mExecutor;
 
