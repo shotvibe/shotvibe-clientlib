@@ -35,6 +35,14 @@ public final class ThreadUtil {
         return Thread.currentThread() == Looper.getMainLooper().getThread();
     }
 
+    public static void sleep(int milliseconds) {
+        try {
+            Thread.sleep(milliseconds);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private ThreadUtil() {
         // Not used
     }

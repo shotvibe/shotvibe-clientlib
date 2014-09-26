@@ -11,6 +11,7 @@
 + (void)runInBackgroundThreadWithSLThreadUtil_Runnable:(id<SLThreadUtil_Runnable>)runnable;
 + (void)runInMainThreadWithSLThreadUtil_Runnable:(id<SLThreadUtil_Runnable>)runnable;
 + (BOOL)isMainThread;
++ (void)sleepWithInt:(int)milliseconds;
 - (id)init;
 @end
 

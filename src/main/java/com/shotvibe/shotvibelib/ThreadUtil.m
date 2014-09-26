@@ -26,6 +26,13 @@
 }
 
 
++ (void)sleepWithInt:(int)milliseconds
+{
+    double time = (double)milliseconds / 1000.0;
+    [NSThread sleepForTimeInterval:time];
+}
+
+
 - (id)init
 {
     // Not used
