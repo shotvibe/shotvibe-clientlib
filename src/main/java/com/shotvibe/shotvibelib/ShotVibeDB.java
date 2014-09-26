@@ -4,8 +4,8 @@ import java.util.List;
 import java.util.Map;
 
 public final class ShotVibeDB {
-    private static final String DATABASE_FILENAME = "shotvibe.db";
-    private static final int DATABASE_VERSION = 5;
+    private static final String DATABASE_FILENAME = "shotvibe_main.db";
+    private static final int DATABASE_VERSION = 6;
 
     public static class Recipe extends SQLDatabaseRecipe<ShotVibeDB> {
         public Recipe() {
@@ -14,7 +14,7 @@ public final class ShotVibeDB {
 
         @Override
         public void populateNewDB(SQLConnection conn) throws SQLException {
-            conn.executeSQLScript("create.sql");
+            conn.executeSQLScript("create_shotvibe_main.sql");
         }
 
         @Override
