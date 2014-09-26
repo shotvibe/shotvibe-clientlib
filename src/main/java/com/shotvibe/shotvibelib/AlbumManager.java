@@ -1,6 +1,7 @@
 package com.shotvibe.shotvibelib;
 
 import java.util.List;
+import java.util.Map;
 
 public class AlbumManager implements UploadManager.Listener {
     public AlbumManager(ShotVibeAPI shotVibeAPI, ShotVibeDB shotVibeDB, UploadManager uploadManager) {
@@ -206,6 +207,18 @@ public class AlbumManager implements UploadManager.Listener {
             if (result.albumsList != null) {
                 try {
                     mShotVibeDB.setAlbumList(result.albumsList);
+
+                    // Loop over the new albumsList, and refresh any albums that have
+                    // an updated etag value:
+                    // TODO Right now all of these refresh requests happen in parallel, they should run in sequence
+                    Map<Long, String> albumEtags = mShotVibeDB.getAlbumListEtagValues();
+                    for (AlbumSummary a : result.albumsList) {
+                        String newEtag = a.getEtag();
+                        String oldEtag = albumEtags.get(a.getId());
+                        if (!newEtag.equals(oldEtag)) {
+                            refreshAlbumContents(a.getId(), false);
+                        }
+                    }
                 } catch (SQLException e) {
                     throw new RuntimeException(e);
                 }
