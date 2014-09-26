@@ -12,6 +12,14 @@
 }
 
 
++ (void)runInMainThreadWithSLThreadUtil_Runnable:(id<SLThreadUtil_Runnable>)runnable
+{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [runnable run];
+    });
+}
+
+
 + (BOOL)isMainThread
 {
     return [NSThread isMainThread];

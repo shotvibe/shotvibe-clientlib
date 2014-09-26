@@ -1,5 +1,6 @@
 package com.shotvibe.shotvibelib;
 
+import android.os.Handler;
 import android.os.Looper;
 
 public final class ThreadUtil {
@@ -17,6 +18,17 @@ public final class ThreadUtil {
         });
 
         backgroundThread.start();
+    }
+
+    public static void runInMainThread(Runnable runnable) {
+        final Runnable finalRunnable = runnable;
+        Handler handler = new Handler(Looper.getMainLooper());
+        handler.post(new java.lang.Runnable() {
+            @Override
+            public void run() {
+                finalRunnable.run();
+            }
+        });
     }
 
     public static boolean isMainThread() {
