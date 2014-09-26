@@ -567,6 +567,31 @@ public final class ShotVibeDB {
         }
     }
 
+    /**
+     * @return Returns null if no result found
+     * @throws SQLException
+     */
+    public synchronized String getUserNickname(long userId) throws SQLException {
+        SQLCursor cursor = mConn.query(""
+                + "SELECT nickname"
+                + " FROM user"
+                + " WHERE user_id=?",
+                SQLValues.create()
+        .add(userId));
+
+        try {
+            if (cursor.moveToNext()) {
+                String nickname = cursor.getString(0);
+                return nickname;
+            } else {
+                return null;
+            }
+        } finally {
+            cursor.close();
+        }
+    }
+
+
     public synchronized void addQueriedPhoneContacts(ArrayList<PhoneContactServerResult> contacts) throws SQLException {
         mConn.beginTransaction();
         try {

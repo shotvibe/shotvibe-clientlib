@@ -30,6 +30,10 @@ public class AlbumManager implements UploadManager.Listener {
         return mShotVibeAPI;
     }
 
+    public ShotVibeDB getShotVibeDB() {
+        return mShotVibeDB;
+    }
+
     public interface AlbumListListener {
         void onAlbumListBeginUserRefresh();
 
