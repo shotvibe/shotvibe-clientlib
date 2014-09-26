@@ -4,91 +4,69 @@ import java.util.List;
 import java.util.Map;
 
 public final class ShotVibeDB {
+    private static final String DATABASE_FILENAME = "shotvibe.db";
+    private static final int DATABASE_VERSION = 5;
+
+    public static class Recipe extends SQLDatabaseRecipe<ShotVibeDB> {
+        public Recipe() {
+            super(DATABASE_FILENAME, DATABASE_VERSION);
+        }
+
+        @Override
+        public void populateNewDB(SQLConnection conn) throws SQLException {
+            conn.executeSQLScript("create.sql");
+        }
+
+        @Override
+        public void upgradeDB(SQLConnection conn, int oldVersion) throws SQLException {
+            // Poor man's migration: just clear the database
+            clearDB(conn);
+        }
+
+        @Override
+        public ShotVibeDB openDB(SQLConnection conn) {
+            return new ShotVibeDB(conn);
+        }
+
+        /**
+         * Clear the database by removing all tables and repopulating it
+         * Should be called from within a transaction
+         *
+         * @param conn
+         * @throws SQLException
+         */
+        private void clearDB(SQLConnection conn) throws SQLException {
+            Log.d("clearDB", "Clearing old database");
+            List<String> tableNames = new ArrayList<String>();
+            SQLCursor cursor = conn.query(""
+                    + "SELECT tbl_name "
+                    + " FROM main.sqlite_master"
+                    + " WHERE type='table'");
+
+            try {
+                while (cursor.moveToNext()) { // collect all table names
+                    tableNames.add(cursor.getString(0));
+                }
+            } finally {
+                cursor.close();
+            }
+
+            for (String tableName : tableNames) { // drop all tables
+                Log.d("clearDB", "Dropping table:" + tableName);
+                conn.update(""
+                        + "DROP TABLE " + tableName);
+            }
+
+            Log.d("clearDB", "Populating new database");
+            populateNewDB(conn);
+
+            Log.d("clearDB", "Upgrade complete");
+        }
+    }
+
     private ShotVibeDB(SQLConnection conn) {
         mConn = conn;
     }
-
-    public static final int DATABASE_VERSION = 5;
-
-    /**
-     * Should be called after populateNewDB or upgradeDB has been called (if one of them was necessary)
-     *
-     * @param conn
-     * @return
-     */
-    public static ShotVibeDB open(SQLConnection conn) {
-        if (conn == null) {
-            throw new IllegalArgumentException("conn cannot be null");
-        }
-
-        return new ShotVibeDB(conn);
-    }
-
-    /**
-     * Should be called from within a transaction
-     *
-     * @param conn
-     * @throws SQLException
-     */
-    public static void populateNewDB(SQLConnection conn) throws SQLException {
-        if (conn == null) {
-            throw new IllegalArgumentException("conn cannot be null");
-        }
-
-        conn.executeSQLScript("create.sql");
-    }
-
-    /**
-     * Should be called from within a transaction
-     *
-     * @param conn
-     * @param oldVersion
-     * @throws SQLException
-     */
-    public static void upgradeDB(SQLConnection conn, int oldVersion) throws SQLException {
-        if (conn == null) {
-            throw new IllegalArgumentException("conn cannot be null");
-        }
-
-        // Poor man's migration: just clear the database
-        clearDB(conn);
-    }
-
-    /**
-     * Clear the database by removing all tables and repopulating it
-     * Should be called from within a transaction
-     *
-     * @param conn
-     * @throws SQLException
-     */
-    private static void clearDB(SQLConnection conn) throws SQLException {
-        Log.d("clearDB", "Clearing old database");
-        List<String> tableNames = new ArrayList<String>();
-        SQLCursor cursor = conn.query(""
-                       + "SELECT tbl_name "
-                       + " FROM main.sqlite_master"
-                       + " WHERE type='table'");
-
-        try {
-            while (cursor.moveToNext()) { // collect all table names
-                tableNames.add(cursor.getString(0));
-            }
-        } finally {
-            cursor.close();
-        }
-
-        for (String tableName : tableNames) { // drop all tables
-            Log.d("clearDB", "Dropping table:" + tableName);
-            conn.update(""
-                   + "DROP TABLE " + tableName);
-        }
-
-        Log.d("clearDB", "Populating new database");
-        populateNewDB(conn);
-
-        Log.d("clearDB", "Upgrade complete");
-    }
-
 
     private SQLConnection mConn;
 

@@ -48,8 +48,7 @@ public class ShotVibeAPI {
     }
 
     private HTTPResponse sendRequest(String method, String url) throws HTTPException {
-        String nullBody = null;
-        return mHttpLib.sendRequest(method, BASE_URL + url, mJsonRequestHeaders, nullBody);
+        return mHttpLib.sendRequest(method, BASE_URL + url, mJsonRequestHeaders, (String) null);
     }
 
     private HTTPResponse sendRequest(String method, String url, JSONObject jsonObj) throws HTTPException {
@@ -139,6 +138,277 @@ public class ShotVibeAPI {
             mNetworkStatusManager.logNetworkRequestFailure(error);
             throw error;
         }
+    }
+
+    public static final class SMSConfirmationToken {
+        public String serialize() {
+            JSONObject data = new JSONObject();
+            data.put("confirmationKey", confirmationKey);
+            data.put("defaultCountry", defaultCountry);
+            data.put("deviceDescription", deviceDescription);
+            if (customPayload == null) {
+                data.putNull("customPayload");
+            } else {
+                data.put("customPayload", customPayload);
+            }
+
+            return data.toString();
+        }
+
+        public static SMSConfirmationToken Deserialize(String serialization) {
+            JSONObject obj;
+            try {
+                obj = JSONObject.Parse(serialization);
+                String confirmationKey = obj.getString("confirmationKey");
+                String defaultCountry = obj.getString("defaultCountry");
+                String deviceDescription = obj.getString("deviceDescription");
+                String customPayload;
+                if (obj.isNull("customPayload")) {
+                    customPayload = null;
+                } else {
+                    customPayload = obj.getString("customPayload");
+                }
+                return new SMSConfirmationToken(confirmationKey, defaultCountry, deviceDescription, customPayload);
+            } catch (JSONException e) {
+                throw new RuntimeException("serialization: " + serialization, e);
+            }
+        }
+
+        private SMSConfirmationToken(String confirmationKey, String defaultCountry, String deviceDescription, String customPayload) {
+            this.confirmationKey = confirmationKey;
+            this.defaultCountry = defaultCountry;
+            this.deviceDescription = deviceDescription;
+            this.customPayload = customPayload;
+        }
+
+        private final String confirmationKey;
+        private final String defaultCountry;
+        private final String deviceDescription;
+        private final String customPayload;
+    }
+
+    /**
+     *
+     * @param defaultCountry 2-letter country code
+     * @param deviceDescription Manufacturer, Name, Model, Version, etc. of the user's device
+     * @param customPayload Query param that was read from the App custom URL scheme. May be null.
+     * @return Returns null if the phone number is not a valid phone number.
+     * @throws APIException
+     */
+    public static SMSConfirmationToken authorizePhoneNumber(HTTPLib httpLib, String phoneNumber, String defaultCountry, String deviceDescription, String customPayload) throws APIException {
+        if (httpLib == null) {
+            throw new IllegalArgumentException("httpLib cannot be null");
+        }
+        if (phoneNumber == null) {
+            throw new IllegalArgumentException("phoneNumber cannot be null");
+        }
+        if (defaultCountry == null) {
+            throw new IllegalArgumentException("defaultCountry cannot be null");
+        }
+        if (deviceDescription == null) {
+            throw new IllegalArgumentException("deviceDescription cannot be null");
+        }
+        if (defaultCountry.length() != 2) {
+            throw new IllegalArgumentException("defaultCountry must be a 2-letter country code");
+        }
+
+        JSONObject body = new JSONObject();
+        body.put("phone_number", phoneNumber);
+        body.put("default_country", defaultCountry);
+
+        Map<String, String> requestHeaders = new HashMap<String, String>();
+        setRequestHeaderContentJSON(requestHeaders);
+        HTTPResponse response;
+        try {
+            response = httpLib.sendRequest("POST", BASE_URL + "/auth/authorize_phone_number/", requestHeaders, body);
+        } catch (HTTPException e) {
+            throw APIException.FromHttpException(e);
+        }
+
+        // We want to explicitly check for this error code:
+        // It means that the phone number was invalid
+        if (response.getStatusCode() == HTTPLib.HTTP_BAD_REQUEST) {
+            return null;
+        }
+
+        if (response.isError()) {
+            throw APIException.ErrorStatusCodeException(response);
+        }
+
+        try {
+            JSONObject responseObj = response.bodyAsJSONObject();
+            String confirmationKey = responseObj.getString("confirmation_key");
+            return new SMSConfirmationToken(confirmationKey, defaultCountry, deviceDescription, customPayload);
+        } catch (JSONException e) {
+            throw APIException.FromJSONException(response, e);
+        }
+    }
+
+    /**
+     *
+     * @param smsConfirmationToken Result of {@link ShotVibeAPI#authorizePhoneNumber}
+     * @param confirmationCode code that the user entered
+     * @return Returns null if the confirmation code that the user entered was incorrect.
+     * @throws APIException
+     */
+    public static AuthData confirmSMSCode(HTTPLib httpLib, SMSConfirmationToken smsConfirmationToken, String confirmationCode) throws APIException {
+        if (httpLib == null) {
+            throw new IllegalArgumentException("httpLib cannot be null");
+        }
+        if (smsConfirmationToken == null) {
+            throw new IllegalArgumentException("smsConfirmationToken cannot be null");
+        }
+        if (confirmationCode == null) {
+            throw new IllegalArgumentException("confirmationCode cannot be null");
+        }
+
+        JSONObject body = new JSONObject();
+        body.put("confirmation_code", confirmationCode);
+        body.put("device_description", smsConfirmationToken.deviceDescription);
+
+        String endPoint;
+        if (smsConfirmationToken.customPayload != null) {
+            endPoint = "/auth/confirm_sms_code/" + smsConfirmationToken.confirmationKey + "/?custom_payload=" + smsConfirmationToken.customPayload;
+        } else {
+            endPoint = "/auth/confirm_sms_code/" + smsConfirmationToken.confirmationKey + "/";
+        }
+
+        Map<String, String> requestHeaders = new HashMap<String, String>();
+        setRequestHeaderContentJSON(requestHeaders);
+        HTTPResponse response;
+        try {
+            response = httpLib.sendRequest("POST", BASE_URL + endPoint, requestHeaders, body);
+        } catch (HTTPException e) {
+            throw APIException.FromHttpException(e);
+        }
+
+        // We want to explicitly check for this error code:
+        // It means that the SMS Code was incorrect
+        if (response.getStatusCode() == HTTPLib.HTTP_FORBIDDEN) {
+            return null;
+        } else if (response.getStatusCode() == HTTPLib.HTTP_GONE) {
+            // This error code means that the confirmation_key has expired.
+
+            // TODO We should call authorizePhoneNumber again here and then
+            // recursively try calling confirmSMSCode again
+            throw new RuntimeException("confirmation_key expired");
+        }
+
+        if (response.isError()) {
+            throw APIException.ErrorStatusCodeException(response);
+        }
+
+        try {
+            JSONObject responseObj = response.bodyAsJSONObject();
+            long userId = responseObj.getLong("user_id");
+            String authToken = responseObj.getString("auth_token");
+
+            return new AuthData(userId, authToken, smsConfirmationToken.defaultCountry);
+        } catch (JSONException e) {
+            throw APIException.FromJSONException(response, e);
+        }
+    }
+
+    public void registerDevicePushAndroid(final String app, final String registrationId) throws APIException {
+        runAndLogNetworkRequestAction(new NetworkRequestAction<Void>() {
+            @Override
+            public NetworkRequestResult<Void> runAction() throws APIException, HTTPException {
+                JSONObject body = new JSONObject();
+                body.put("type", "gcm");
+                body.put("app", app);
+                body.put("registration_id", registrationId);
+
+                HTTPResponse response = sendRequest("POST", "/register_device_push/", body);
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+
+                return new NetworkRequestResult<Void>(null, response);
+            }
+        });
+    }
+
+    public void registerDevicePushIOS(final String app, final String deviceToken) throws APIException {
+        runAndLogNetworkRequestAction(new NetworkRequestAction<Void>() {
+            @Override
+            public NetworkRequestResult<Void> runAction() throws APIException, HTTPException {
+                JSONObject body = new JSONObject();
+                body.put("type", "apns");
+                body.put("app", app);
+                body.put("device_token", deviceToken);
+
+                HTTPResponse response = sendRequest("POST", "/register_device_push/", body);
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+
+                return new NetworkRequestResult<Void>(null, response);
+            }
+        });
+    }
+
+    public AlbumUser getUserProfile(final long userId) throws APIException {
+        return runAndLogNetworkRequestAction(new NetworkRequestAction<AlbumUser>() {
+            @Override
+            public NetworkRequestResult<AlbumUser> runAction() throws APIException, HTTPException {
+                HTTPResponse response = sendRequest("GET", "/users/" + userId + "/");
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+
+                try {
+                    JSONObject responseObj = response.bodyAsJSONObject();
+
+                    long memberId = responseObj.getLong("id");
+                    String nickname = responseObj.getString("nickname");
+                    String avatarUrl = responseObj.getString("avatar_url");
+
+                    AlbumUser user = new AlbumUser(memberId, nickname, avatarUrl);
+                    return new NetworkRequestResult<AlbumUser>(user, response);
+                } catch (JSONException e) {
+                    throw APIException.FromJSONException(response, e);
+                }
+            }
+        });
+    }
+
+    public void setUserNickname(final long userId, final String nickname) throws APIException {
+        runAndLogNetworkRequestAction(new NetworkRequestAction<Void>() {
+            @Override
+            public NetworkRequestResult<Void> runAction() throws APIException, HTTPException {
+                JSONObject body = new JSONObject();
+                body.put("nickname", nickname);
+
+                HTTPResponse response = sendRequest("PATCH", "/users/" + userId + "/", body);
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+
+                return new NetworkRequestResult<Void>(null, response);
+            }
+        });
+    }
+
+    public void uploadUserAvatar(final long userId, final String filePath) throws APIException {
+        runAndLogNetworkRequestAction(new NetworkRequestAction<Void>() {
+            @Override
+            public NetworkRequestResult<Void> runAction() throws APIException, HTTPException {
+                Map<String, String> headers = new HashMap<String, String>();
+                headers.put("Content-Type", "application/octet-stream");
+                headers.put("Authorization", "Token " + mAuthData.getAuthToken());
+                HTTPResponse response = mHttpLib.sendRequestFile("PUT", BASE_URL + "/users/" + userId + "/avatar/", headers, filePath);
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+
+                return new NetworkRequestResult<Void>(null, response);
+            }
+        });
     }
 
     private static AlbumUser parseAlbumUser(JSONObject userObj) throws JSONException {
@@ -265,7 +535,6 @@ public class ShotVibeAPI {
     }
 
     /**
-     * @param obj
      * @param etag ETag value from HTTP header, may be null
      * @return AlbumContents object
      * @throws JSONException
@@ -347,8 +616,6 @@ public class ShotVibeAPI {
     /**
      * Change the name of an album
      *
-     * @param albumId
-     * @param newAlbumName
      * @return 'true' if album name successfully changed. 'false' if the name cannot be changed
      * because the album was created by a different user
      * @throws APIException
@@ -392,8 +659,7 @@ public class ShotVibeAPI {
                 ArrayList<String> result = new ArrayList<String>();
 
                 try {
-                    JSONArray responseArray = null;
-                    responseArray = response.bodyAsJSONArray();
+                    JSONArray responseArray = response.bodyAsJSONArray();
                     for (int i = 0; i < responseArray.length(); ++i) {
                         JSONObject photoUploadRequestObj = responseArray.getJSONObject(i);
                         String photoId = photoUploadRequestObj.getString("photo_id");

@@ -3,6 +3,10 @@ package com.shotvibe.shotvibelib;
 import java.util.Map;
 
 public interface HTTPLib {
+    int HTTP_BAD_REQUEST = 400;
+    int HTTP_FORBIDDEN = 403;
+    int HTTP_GONE = 410;
+
     /**
      * Send an HTTP Request
      *
@@ -18,4 +22,6 @@ public interface HTTPLib {
     HTTPResponse sendRequest(String httpMethod, String url, Map<String, String> requestHeaders, JSONObject body) throws HTTPException;
 
     HTTPResponse sendRequest(String httpMethod, String url, Map<String, String> requestHeaders, JSONArray body) throws HTTPException;
+
+    HTTPResponse sendRequestFile(String httpMethod, String url, Map<String, String> requestHeaders, String filePath) throws HTTPException;
 }
