@@ -7,13 +7,14 @@ public class UploadSystemDirector {
             BackgroundUploadSession.Factory<ForAlbumTaskData> backgroundUploadSessionFactory,
             UploadStateDB uploadStateDB,
             ShotVibeAPI shotVibeAPI,
+            PhotoDownloadManager photoDownloadManager,
             String uploadFilesDir,
             BitmapProcessor bitmapProcessor) {
         mUploadStateDB = uploadStateDB;
         mShotVibeAPI = shotVibeAPI;
 
         mUploadingPhotos = loadUploadingPhotosFromDB();
-        mUploadManager = new UploadManagerImpl(shotVibeAPI, this, uploadFilesDir, bitmapProcessor, mUploadingPhotos);
+        mUploadManager = new UploadManagerImpl(shotVibeAPI, this, uploadFilesDir, photoDownloadManager, bitmapProcessor, mUploadingPhotos);
 
         final BackgroundUploadSession.Listener<ForAlbumTaskData> listener = new BackgroundUploadSession.Listener<ForAlbumTaskData>() {
             @Override

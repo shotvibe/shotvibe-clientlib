@@ -8,6 +8,7 @@ public class UploadManagerImpl implements UploadManager {
             ShotVibeAPI shotVibeAPI,
             UploadSystemDirector uploadSystemDirector,
             String uploadFilesDir,
+            PhotoDownloadManager photoDownloadManager,
             BitmapProcessor bitmapProcessor,
             List<UploadingPhoto> storedUploads) {
         if (shotVibeAPI == null) {
@@ -29,6 +30,7 @@ public class UploadManagerImpl implements UploadManager {
         mShotVibeAPI = shotVibeAPI;
         mUploadSystemDirector = uploadSystemDirector;
         mUploadsDir = uploadFilesDir;
+        mPhotoDownloadManager = photoDownloadManager;
         mBitmapProcessor = bitmapProcessor;
 
         mPreperationExecutor = ThreadUtil.createSingleThreadExecutor();
@@ -106,7 +108,7 @@ public class UploadManagerImpl implements UploadManager {
 
     private static final int ADD_PHOTOS_ERROR_RETRY_TIME = 5000;
 
-    private void addPhotosToAlbum(final long albumId, ArrayList<AlbumUploadingPhoto> photos) {
+    private void addPhotosToAlbum(final long albumId, final ArrayList<AlbumUploadingPhoto> photos) {
         ArrayList<String> photoIds = new ArrayList<String>(photos.size());
         HashSet<String> tmpFiles = new HashSet<String>(photos.size());
         for (AlbumUploadingPhoto p : photos) {
@@ -132,7 +134,12 @@ public class UploadManagerImpl implements UploadManager {
 
         mUploadSystemDirector.reportPhotosAddedToAlbum(tmpFiles);
 
-        // TODO Neat optimization: move tmp thumb file into PhotoFilesManager for instant load
+        // This is a nice enhancement. Instead of the app later needing to download the thumbnails
+        // from the server, we use the thumbnails that we already have
+        for (AlbumUploadingPhoto addedPhoto : photos) {
+            String thumbFile = addedPhoto.getTmpFile() + THUMB_FILE_SUFFIX;
+            mPhotoDownloadManager.takePhotoThumbnailFile(thumbFile, addedPhoto.getPhotoId());
+        }
 
         // TODO Delete uploaded tmp files
 
@@ -162,6 +169,7 @@ public class UploadManagerImpl implements UploadManager {
     private final String mUploadsDir;
     private final UploadSystemDirector mUploadSystemDirector;
     private final ShotVibeAPI mShotVibeAPI;
+    private final PhotoDownloadManager mPhotoDownloadManager;
     private final BitmapProcessor mBitmapProcessor;
     private Listener mListener;
 
