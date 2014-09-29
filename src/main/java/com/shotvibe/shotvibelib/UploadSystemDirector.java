@@ -49,7 +49,6 @@ public class UploadSystemDirector {
 
                 final String photoId = finishedTask.getTaskData().getPhotoId();
                 final String tmpFile = finishedTask.getTaskData().getTmpFile();
-                final UploadingPhoto.UploadStrategy uploadStrategy = finishedTask.getTaskData().getUploadStrategy();
 
                 if (successfullyUploaded) {
                     long albumId = setPhotoUploaded(tmpFile, photoId);
@@ -63,8 +62,15 @@ public class UploadSystemDirector {
                         public void run() {
                             ThreadUtil.sleep(5000); // TODO Magic Constant
 
-                            UploadPlan.ForAlbum forAlbum = new UploadPlan.ForAlbum(tmpFile, uploadStrategy);
-                            launchForAlbumUpload(forAlbum, photoId);
+                            mBackgroundUploads.processCurrentTasks(new BackgroundUploadSession.TaskProcessor<ForAlbumTaskData>() {
+                                @Override
+                                public void processTasks(List<BackgroundUploadSession.Task<ForAlbumTaskData>> currentTasks) {
+                                    UploadPlan uploadPlan = getUploadPlan(mUploadingPhotos);
+                                    if (uploadPlan != null) {
+                                        processUploadPlan(uploadPlan, currentTasks);
+                                    }
+                                }
+                            });
                         }
                     });
                 }
