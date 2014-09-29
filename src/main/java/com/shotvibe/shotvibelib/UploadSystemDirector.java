@@ -38,14 +38,10 @@ public class UploadSystemDirector {
 
             @Override
             public void onTaskUploadFinished(final BackgroundUploadSession.FinishedTask<ForAlbumTaskData> finishedTask) {
-                Log.d("UploadSystem", "onTaskUploadFinished: " + finishedTask.getTaskData().getTmpFile());
+                final boolean successfullyUploaded = finishedTask.completedWithStatusCode()
+                        && finishedTask.getStatusCode() < 400;
 
-                boolean successfullyUploaded;
-                if (finishedTask.completedWithStatusCode()) {
-                    successfullyUploaded = finishedTask.getStatusCode() < 400;
-                } else {
-                    successfullyUploaded = false;
-                }
+                Log.d("UploadSystem", "onTaskUploadFinished (" + successfullyUploaded + ") " + finishedTask.getTaskData().getTmpFile());
 
                 final String photoId = finishedTask.getTaskData().getPhotoId();
                 final String tmpFile = finishedTask.getTaskData().getTmpFile();
