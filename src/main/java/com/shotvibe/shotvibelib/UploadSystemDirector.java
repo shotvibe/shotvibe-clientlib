@@ -58,6 +58,7 @@ public class UploadSystemDirector {
                         public void run() {
                             ThreadUtil.sleep(5000); // TODO Magic Constant
 
+                            Log.d("UploadSystem", "Starting new uploadPlan because of failed: " + tmpFile);
                             mBackgroundUploads.processCurrentTasks(new BackgroundUploadSession.TaskProcessor<ForAlbumTaskData>() {
                                 @Override
                                 public void processTasks(List<BackgroundUploadSession.Task<ForAlbumTaskData>> currentTasks) {
@@ -129,6 +130,7 @@ public class UploadSystemDirector {
             public void processTasks(List<BackgroundUploadSession.Task<ForAlbumTaskData>> currentTasks) {
                 UploadPlan uploadPlan = getUploadPlan(mUploadingPhotos);
                 if (uploadPlan != null) {
+                    Log.d("UploadSystem", "fetchMorePhotoIds: processUploadPlan");
                     processUploadPlan(uploadPlan, currentTasks);
                 }
             }
@@ -317,6 +319,7 @@ public class UploadSystemDirector {
                 if (uploadPlan == null) {
                     throw new IllegalStateException("The Impossible Happened");
                 }
+                Log.d("UploadSystem", "addUploadingPhoto: processUploadPlan");
                 processUploadPlan(uploadPlan, currentTasks);
 
             }
