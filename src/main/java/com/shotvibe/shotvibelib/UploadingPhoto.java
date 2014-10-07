@@ -16,6 +16,9 @@ public class UploadingPhoto {
         if (uploadState == null) {
             throw new IllegalArgumentException("uploadState cannot be null");
         }
+        if (uploadStrategy == UploadStrategy.Unknown && uploadState != UploadState.Queued) {
+            throw new IllegalArgumentException("uploadState must be Queued when UploadStrategy.Unknown");
+        }
         if (uploadState == UploadState.Queued && photoId != null) {
             throw new IllegalArgumentException("photoId must be null when UploadState.Queued");
         }
@@ -34,6 +37,11 @@ public class UploadingPhoto {
     }
 
     public enum UploadStrategy {
+        /**
+         * The photo is not yet done processing so the UploadStrategy is not yet known
+         */
+        Unknown,
+
         /**
          * Only the original photo will be uploaded, and then it will be added to the album
          */
@@ -62,10 +70,17 @@ public class UploadingPhoto {
         Uploaded,
 
         /**
+         * The photo is currently being added to an Album. It's albumId should not change.
+         *
+         * PhotoId must not be null
+         */
+        AddingToAlbum,
+
+        /**
          * The first photo has been uploaded and added to the album, but the original photo has not
          * yet been uploaded.
          *
-         * This is only valid for @UploadStrategy.UploadTwoStage@
+         * This is only valid for {@link UploadStrategy.UploadTwoStage}
          *
          * PhotoId must not be null
          */

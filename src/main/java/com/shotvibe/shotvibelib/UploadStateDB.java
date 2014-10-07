@@ -70,7 +70,7 @@ public final class UploadStateDB {
         }
     }
 
-    public void addUploadingPhoto(UploadingPhoto uploadingPhoto) throws SQLException {
+    public void insertUploadingPhoto(UploadingPhoto uploadingPhoto) throws SQLException {
         mConn.beginTransaction();
         try {
             String photoId;
@@ -88,6 +88,23 @@ public final class UploadStateDB {
                             .add(uploadingPhoto.getUploadStrategy().ordinal())
                             .add(uploadingPhoto.getUploadState().ordinal())
                             .addNullable(photoId));
+            mConn.setTransactionSuccesful();
+        } finally {
+            mConn.endTransaction();
+        }
+    }
+
+    public void setPhotoUploadStrategy(UploadingPhoto uploadingPhoto) throws SQLException {
+        mConn.beginTransaction();
+        try {
+            mConn.update(""
+                            + "UPDATE uploading_photo"
+                            + " SET upload_strategy=?"
+                            + " WHERE tmp_filename=?",
+                    SQLValues.create()
+                            .add(uploadingPhoto.getUploadStrategy().ordinal())
+                            .add(uploadingPhoto.getTmpFilename()));
+
             mConn.setTransactionSuccesful();
         } finally {
             mConn.endTransaction();
@@ -147,6 +164,9 @@ public final class UploadStateDB {
     }
 
     private static UploadingPhoto.UploadStrategy readUploadStrategy(int val) {
+        if (val == UploadingPhoto.UploadStrategy.Unknown.ordinal()) {
+            return UploadingPhoto.UploadStrategy.Unknown;
+        }
         if (val == UploadingPhoto.UploadStrategy.UploadOriginalDirectly.ordinal()) {
             return UploadingPhoto.UploadStrategy.UploadOriginalDirectly;
         }

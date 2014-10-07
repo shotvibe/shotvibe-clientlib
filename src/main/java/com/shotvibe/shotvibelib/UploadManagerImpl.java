@@ -33,12 +33,20 @@ public class UploadManagerImpl implements UploadManager {
         mPhotoDownloadManager = photoDownloadManager;
         mBitmapProcessor = bitmapProcessor;
 
-        mPreperationExecutor = ThreadUtil.createSingleThreadExecutor();
         mListener = null;
 
         mUploadingPhotos = new UploadingPhotosContainer();
 
         initFromStoredUploads(storedUploads);
+
+        ThreadUtil.runInBackgroundThread(new ThreadUtil.Runnable() {
+            @Override
+            public void run() {
+                while (true) {
+                    processNextJob();
+                }
+            }
+        });
 
         for (Long albumId : mUploadingPhotos.getAlbums()) {
             checkAndAddToAlbum(albumId);
@@ -65,6 +73,16 @@ public class UploadManagerImpl implements UploadManager {
         AlbumUploadingPhoto albumUploadingPhoto;
         synchronized (mUploadingPhotos) {
             albumUploadingPhoto = mUploadingPhotos.findUploadingPhoto(albumId, tmpFile);
+        }
+
+        mJobsConditionVar.lock();
+        try {
+            mNumProcessedAndReady--;
+            if (mNumProcessedAndReady < 0) {
+                throw new IllegalStateException("Impossible Happened");
+            }
+        } finally {
+            mJobsConditionVar.unlock();
         }
 
         albumUploadingPhoto.setUploaded(photoId);
@@ -155,14 +173,32 @@ public class UploadManagerImpl implements UploadManager {
     }
 
     private void initFromStoredUploads(List<UploadingPhoto> storedUploads) {
+        if (!storedUploads.isEmpty()) {
+            mJobsConditionVar.lock();
+        }
+
         for (UploadingPhoto photo : storedUploads) {
             if (photo.getUploadState() == UploadingPhoto.UploadState.Queued) {
-                AlbumUploadingPhoto albumUploadingPhoto = AlbumUploadingPhoto.NewUploading(photo.getTmpFilename());
+                AlbumUploadingPhoto albumUploadingPhoto;
+
+                if (photo.getUploadStrategy() == UploadingPhoto.UploadStrategy.Unknown) {
+                    albumUploadingPhoto = AlbumUploadingPhoto.NewPreparingFiles(photo.getTmpFilename());
+                    mPhotoProcessJobQueue.add(new PhotoProcessJob(albumUploadingPhoto, photo.getAlbumId()));
+                } else {
+                    albumUploadingPhoto = AlbumUploadingPhoto.NewUploading(photo.getTmpFilename());
+
+                    mNumProcessedAndReady++;
+                }
+
                 mUploadingPhotos.addUploadingPhoto(photo.getAlbumId(), albumUploadingPhoto);
             } else if (photo.getUploadState() == UploadingPhoto.UploadState.Uploaded) {
                 AlbumUploadingPhoto albumUploadingPhoto = AlbumUploadingPhoto.NewUploaded(photo.getTmpFilename(), photo.getPhotoId());
                 mUploadingPhotos.addUploadingPhoto(photo.getAlbumId(), albumUploadingPhoto);
             }
+        }
+
+        if (!storedUploads.isEmpty()) {
+            mJobsConditionVar.unlock();
         }
     }
 
@@ -189,11 +225,54 @@ public class UploadManagerImpl implements UploadManager {
         return result;
     }
 
+    private static class PhotoSaveJob {
+        public PhotoSaveJob(AlbumUploadingPhoto albumUploadingPhoto, String tmpFile, PhotoUploadRequest photoUploadRequest, long albumId) {
+            if (albumUploadingPhoto == null) {
+                throw new IllegalArgumentException("albumUploadingPhoto cannot be null");
+            }
+            if (tmpFile == null) {
+                throw new IllegalArgumentException("tmpFile cannot be null");
+            }
+            if (photoUploadRequest == null) {
+                throw new IllegalArgumentException("photoUploadRequest cannot be null");
+            }
+            this.AlbumUploadingPhoto = albumUploadingPhoto;
+            this.TmpFile = tmpFile;
+            this.PhotoUploadRequest = photoUploadRequest;
+            this.AlbumId = albumId;
+        }
+        public final AlbumUploadingPhoto AlbumUploadingPhoto;
+        public final String TmpFile;
+        public final PhotoUploadRequest PhotoUploadRequest;
+        public final long AlbumId;
+    }
+
+    private static class PhotoProcessJob {
+        public PhotoProcessJob(AlbumUploadingPhoto albumUploadingPhoto, long albumId) {
+            if (albumUploadingPhoto == null) {
+                throw new IllegalArgumentException("albumUploadingPhoto cannot be null");
+            }
+            this.AlbumUploadingPhoto = albumUploadingPhoto;
+            this.AlbumId = albumId;
+        }
+        public final AlbumUploadingPhoto AlbumUploadingPhoto;
+        public final long AlbumId;
+    }
+
+    private final ConditionVar mJobsConditionVar = new ConditionVar();
+
+    // The following must be accessed only when mJobsConditionVar is locked:
+    private final ArrayList<PhotoSaveJob> mPhotoSaveJobQueue = new ArrayList<PhotoSaveJob>();
+    private final ArrayList<PhotoProcessJob> mPhotoProcessJobQueue = new ArrayList<PhotoProcessJob>();
+    private int mNumProcessedAndReady = 0;
+
     @Override
     public void uploadPhotos(final long albumId, List<PhotoUploadRequest> photoUploadRequests) {
         if (!ThreadUtil.isMainThread()) {
             throw new IllegalStateException("Must be called from the Main Thread");
         }
+
+        Log.d("UploadManager", "Uploading photos: " + photoUploadRequests.size());
 
         // TODO Set some sort of lock on this album so that `addPhotosToAlbum` is not yet called
         // until the last photo in `photoUploadRequests` has been prepared. Otherwise, a very fast
@@ -202,48 +281,129 @@ public class UploadManagerImpl implements UploadManager {
 
         for (PhotoUploadRequest photoUploadRequest : photoUploadRequests) {
             final String tmpFile = mUploadsDir + TmpNameGenerator.newTmpName();
-            final AlbumUploadingPhoto newUploadingPhoto = AlbumUploadingPhoto.NewPreparingFiles(tmpFile);
-            mUploadingPhotos.addUploadingPhoto(albumId, newUploadingPhoto);
 
-            final PhotoUploadRequest currentPhotoUploadRequest = photoUploadRequest;
+            final AlbumUploadingPhoto albumUploadingPhoto = AlbumUploadingPhoto.NewSaving(tmpFile);
 
-            mPreperationExecutor.execute(new ThreadUtil.Runnable() {
-                @Override
-                public void run() {
-                    String resizedPath = tmpFile + UploadManager.RESIZED_FILE_SUFFIX;
-                    String thumbPath = tmpFile + UploadManager.THUMB_FILE_SUFFIX;
+            synchronized (mUploadingPhotos) {
+                mUploadingPhotos.addUploadingPhoto(albumId, albumUploadingPhoto);
+            }
 
-                    currentPhotoUploadRequest.saveToFile(tmpFile);
-
-                    BitmapProcessor.ResizedResult result = mBitmapProcessor.createResizedAndThumbnail(tmpFile, resizedPath, thumbPath);
-                    if (!result.success) {
-                        // TODO ! Uh oh...
-                        // Could be an invalid image file or something...
-                        return;
-                    }
-                    Log.d("UploadManager", "processed file: " + tmpFile);
-
-                    boolean shouldUploadOriginalDirectly = shouldUploadOriginalDirectly(result.originalWidth, result.originalHeight, result.resizedWidth, result.resizedHeight);
-
-                    final UploadingPhoto.UploadStrategy uploadStrategy = shouldUploadOriginalDirectly
-                            ? UploadingPhoto.UploadStrategy.UploadOriginalDirectly
-                            : UploadingPhoto.UploadStrategy.UploadTwoStage;
-
-                    newUploadingPhoto.setUploading();
-
-                    mUploadSystemDirector.addUploadingPhoto(albumId, tmpFile, uploadStrategy);
-
-                    ThreadUtil.runInMainThread(new ThreadUtil.Runnable() {
-                        @Override
-                        public void run() {
-                            if (mListener != null) {
-                                mListener.refreshAlbum(albumId);
-                            }
-                        }
-                    });
-                }
-            });
+            mJobsConditionVar.lock();
+            try {
+                mPhotoSaveJobQueue.add(new PhotoSaveJob(albumUploadingPhoto, tmpFile, photoUploadRequest, albumId));
+                mJobsConditionVar.signal();
+            } finally {
+                mJobsConditionVar.unlock();
+            }
         }
+    }
+
+    private void processNextJob() {
+        // We want to have at least this number of available photos processed and ready for
+        // uploading, before we do any more save jobs. Should be equal to the number
+        // of concurrent uploads + 1
+        final int PROCESS_BUFFER = 3;
+
+        PhotoSaveJob photoSaveJob = null;
+        PhotoProcessJob photoProcessJob = null;
+
+        while (true) {
+            mJobsConditionVar.lock();
+            try {
+                // First priority is to handle the save jobs (but only if we don't urgently need
+                // more process jobs handled due to a low buffer)
+                if (!mPhotoSaveJobQueue.isEmpty() && (mNumProcessedAndReady >= PROCESS_BUFFER || mPhotoProcessJobQueue.isEmpty())) {
+                    photoSaveJob = mPhotoSaveJobQueue.get(0);
+                    mPhotoSaveJobQueue.remove(0);
+                    break;
+                }
+
+                // Otherwise, handle any process jobs
+                if (!mPhotoProcessJobQueue.isEmpty()) {
+                    photoProcessJob = mPhotoProcessJobQueue.get(0);
+                    mPhotoProcessJobQueue.remove(0);
+                    break;
+                }
+
+                // No jobs at all available, wait for one to be added to a queue
+                mJobsConditionVar.await();
+            } finally {
+                mJobsConditionVar.unlock();
+            }
+        }
+
+        if (photoSaveJob != null) {
+            processPhotoSaveJob(photoSaveJob);
+        } else if (photoProcessJob != null) {
+            processPhotoProcessJob(photoProcessJob);
+        } else {
+            throw new IllegalStateException("Impossible happened");
+        }
+    }
+
+    private void processPhotoSaveJob(final PhotoSaveJob photoSaveJob) {
+        Log.d("UploadManager", "saving file: " + photoSaveJob.TmpFile);
+        photoSaveJob.PhotoUploadRequest.saveToFile(photoSaveJob.TmpFile);
+        Log.d("UploadManager", "saved file: " + photoSaveJob.TmpFile);
+
+        photoSaveJob.AlbumUploadingPhoto.setPreparingFiles();
+        mUploadSystemDirector.reportNewUploadingPhoto(photoSaveJob.AlbumId, photoSaveJob.TmpFile);
+
+        mJobsConditionVar.lock();
+        try {
+            mPhotoProcessJobQueue.add(new PhotoProcessJob(photoSaveJob.AlbumUploadingPhoto, photoSaveJob.AlbumId));
+        } finally {
+            mJobsConditionVar.unlock();
+        }
+
+        ThreadUtil.runInMainThread(new ThreadUtil.Runnable() {
+            @Override
+            public void run() {
+                if (mListener != null) {
+                    mListener.refreshAlbum(photoSaveJob.AlbumId);
+                }
+            }
+        });
+    }
+
+    private void processPhotoProcessJob(final PhotoProcessJob photoProcessJob) {
+        final String tmpFile = photoProcessJob.AlbumUploadingPhoto.getTmpFile();
+        final String resizedPath = tmpFile + UploadManager.RESIZED_FILE_SUFFIX;
+        final String thumbPath = tmpFile + UploadManager.THUMB_FILE_SUFFIX;
+
+        Log.d("UploadManager", "processing file: " + tmpFile);
+        BitmapProcessor.ResizedResult result = mBitmapProcessor.createResizedAndThumbnail(tmpFile, resizedPath, thumbPath);
+        if (!result.success) {
+            // TODO ! Uh oh...
+            // Could be an invalid image file or something...
+            return;
+        }
+        Log.d("UploadManager", "processed file: " + tmpFile);
+
+        boolean shouldUploadOriginalDirectly = shouldUploadOriginalDirectly(result.originalWidth, result.originalHeight, result.resizedWidth, result.resizedHeight);
+
+        final UploadingPhoto.UploadStrategy uploadStrategy = shouldUploadOriginalDirectly
+                ? UploadingPhoto.UploadStrategy.UploadOriginalDirectly
+                : UploadingPhoto.UploadStrategy.UploadTwoStage;
+
+        photoProcessJob.AlbumUploadingPhoto.setUploading();
+        mUploadSystemDirector.reportUploadingPhotoReady(tmpFile, uploadStrategy);
+
+        mJobsConditionVar.lock();
+        try {
+            mNumProcessedAndReady++;
+        } finally {
+            mJobsConditionVar.unlock();
+        }
+
+        ThreadUtil.runInMainThread(new ThreadUtil.Runnable() {
+            @Override
+            public void run() {
+                if (mListener != null) {
+                    mListener.refreshAlbum(photoProcessJob.AlbumId);
+                }
+            }
+        });
     }
 
     private static class TmpNameGenerator {
@@ -285,8 +445,7 @@ public class UploadManagerImpl implements UploadManager {
         return 100 * resizedArea / originalArea >= THRESHOLD_PERCENT;
     }
 
-    private final ThreadUtil.Executor mPreperationExecutor;
-
+    // Must be accessed only from the main thread
     private final UploadingPhotosContainer mUploadingPhotos;
 
     private static class UploadingPhotosContainer {
