@@ -3,18 +3,24 @@ package com.shotvibe.shotvibelib;
 import java.util.List;
 
 public class UploadSystemDirector {
+    /**
+     *
+     * @param backgroundTaskManager May be null
+     */
     public UploadSystemDirector(
             BackgroundUploadSession.Factory<ForAlbumTaskData> backgroundUploadSessionFactory,
             UploadStateDB uploadStateDB,
             ShotVibeAPI shotVibeAPI,
             PhotoDownloadManager photoDownloadManager,
             String uploadFilesDir,
-            BitmapProcessor bitmapProcessor) {
+            BitmapProcessor bitmapProcessor,
+            BackgroundTaskManager backgroundTaskManager) {
         mUploadStateDB = uploadStateDB;
         mShotVibeAPI = shotVibeAPI;
+        mBackgroundTaskManager = backgroundTaskManager;
 
         mUploadingPhotos = loadUploadingPhotosFromDB();
-        mUploadManager = new UploadManagerImpl(shotVibeAPI, this, uploadFilesDir, photoDownloadManager, bitmapProcessor, mUploadingPhotos);
+        mUploadManager = new UploadManagerImpl(shotVibeAPI, this, uploadFilesDir, photoDownloadManager, bitmapProcessor, mUploadingPhotos, backgroundTaskManager);
 
         final BackgroundUploadSession.Listener<ForAlbumTaskData> listener = new BackgroundUploadSession.Listener<ForAlbumTaskData>() {
             @Override
@@ -91,6 +97,7 @@ public class UploadSystemDirector {
     private final ArrayList<UploadingPhoto> mUploadingPhotos;
 
     private final ShotVibeAPI mShotVibeAPI;
+    private final BackgroundTaskManager mBackgroundTaskManager;
 
     private final BackgroundUploadSession<ForAlbumTaskData> mBackgroundUploads;
 
@@ -173,7 +180,7 @@ public class UploadSystemDirector {
                                     fetchMorePhotoIds();
                                 }
                             });
-                            break;
+                            return;
                         }
 
                         String photoId = mAvailablePhotoIds.get(0);
@@ -182,6 +189,10 @@ public class UploadSystemDirector {
                         launchForAlbumUpload(forAlbum, photoId);
                     }
                 }
+
+                // If we got here then all queued photos have been launched and are now uploading
+                // in the background
+                mUploadManager.reportAllUploadsLaunched();
             }
         } else if (uploadPlan.uploadOriginals != null) {
             // TODO ...

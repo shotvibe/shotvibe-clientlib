@@ -4,13 +4,18 @@ import java.util.List;
 import java.util.Set;
 
 public class UploadManagerImpl implements UploadManager {
+    /**
+     *
+     * @param backgroundTaskManager May be null
+     */
     public UploadManagerImpl(
             ShotVibeAPI shotVibeAPI,
             UploadSystemDirector uploadSystemDirector,
             String uploadFilesDir,
             PhotoDownloadManager photoDownloadManager,
             BitmapProcessor bitmapProcessor,
-            List<UploadingPhoto> storedUploads) {
+            List<UploadingPhoto> storedUploads,
+            BackgroundTaskManager backgroundTaskManager) {
         if (shotVibeAPI == null) {
             throw new IllegalArgumentException("shotVibeAPI cannot be null");
         }
@@ -32,6 +37,7 @@ public class UploadManagerImpl implements UploadManager {
         mUploadsDir = uploadFilesDir;
         mPhotoDownloadManager = photoDownloadManager;
         mBitmapProcessor = bitmapProcessor;
+        mBackgroundTaskManager = backgroundTaskManager;
 
         mListener = null;
 
@@ -127,6 +133,13 @@ public class UploadManagerImpl implements UploadManager {
     private static final int ADD_PHOTOS_ERROR_RETRY_TIME = 5000;
 
     private void addPhotosToAlbum(final long albumId, final ArrayList<AlbumUploadingPhoto> photos) {
+        BackgroundTaskManager.BackgroundTask addToAlbumBackgroundTask = mBackgroundTaskManager.beginBackgroundTask(new BackgroundTaskManager.ExpirationHandler() {
+            @Override
+            public void onAppWillTerminate() {
+                // TODO ...
+            }
+        });
+
         ArrayList<String> photoIds = new ArrayList<String>(photos.size());
         HashSet<String> tmpFiles = new HashSet<String>(photos.size());
         for (AlbumUploadingPhoto p : photos) {
@@ -161,6 +174,8 @@ public class UploadManagerImpl implements UploadManager {
 
         // TODO Delete uploaded tmp files
 
+        addToAlbumBackgroundTask.reportFinished();
+
         final AlbumContents finalNewAlbumContents = newAlbumContents;
         ThreadUtil.runInMainThread(new ThreadUtil.Runnable() {
             @Override
@@ -184,6 +199,8 @@ public class UploadManagerImpl implements UploadManager {
                 if (photo.getUploadStrategy() == UploadingPhoto.UploadStrategy.Unknown) {
                     albumUploadingPhoto = AlbumUploadingPhoto.NewPreparingFiles(photo.getTmpFilename());
                     mPhotoProcessJobQueue.add(new PhotoProcessJob(albumUploadingPhoto, photo.getAlbumId()));
+
+                    startBackgroundActivity();
                 } else {
                     albumUploadingPhoto = AlbumUploadingPhoto.NewUploading(photo.getTmpFilename());
 
@@ -207,7 +224,42 @@ public class UploadManagerImpl implements UploadManager {
     private final ShotVibeAPI mShotVibeAPI;
     private final PhotoDownloadManager mPhotoDownloadManager;
     private final BitmapProcessor mBitmapProcessor;
+    private final BackgroundTaskManager mBackgroundTaskManager;
     private Listener mListener;
+
+    private final Object mBackgroundTaskLock = new Object();
+    private BackgroundTaskManager.BackgroundTask mBackgroundTask = null;
+
+    private void startBackgroundActivity() {
+        synchronized (mBackgroundTaskLock) {
+            if (mBackgroundTask != null) {
+                return;
+            }
+
+            mBackgroundTask = mBackgroundTaskManager.beginBackgroundTask(new BackgroundTaskManager.ExpirationHandler() {
+                @Override
+                public void onAppWillTerminate() {
+                    reportAppWillTerminate();
+                }
+            });
+        }
+    }
+
+    public void reportAllUploadsLaunched() {
+        mJobsConditionVar.lock();
+        try {
+            if (mPhotoSaveJobQueue.isEmpty() && mPhotoProcessJobQueue.isEmpty()) {
+                synchronized (mBackgroundTaskLock) {
+                    if (mBackgroundTask != null) {
+                        mBackgroundTask.reportFinished();
+                    }
+                }
+            }
+        } finally {
+            mJobsConditionVar.unlock();
+        }
+    }
+
 
     @Override
     public List<AlbumPhoto> getUploadingPhotos(long albumId) {
@@ -223,6 +275,19 @@ public class UploadManagerImpl implements UploadManager {
         }
 
         return result;
+    }
+
+    public void reportAppWillTerminate() {
+        mJobsConditionVar.lock();
+        try {
+            if (!mPhotoSaveJobQueue.isEmpty()) {
+                mBackgroundTaskManager.showNotificationMessage(BackgroundTaskManager.NotificationMessage.UPLOADS_STILL_SAVING);
+            } else if (!mPhotoProcessJobQueue.isEmpty()) {
+                mBackgroundTaskManager.showNotificationMessage(BackgroundTaskManager.NotificationMessage.UPLOADS_STILL_PROCESSING);
+            }
+        } finally {
+            mJobsConditionVar.unlock();
+        }
     }
 
     private static class PhotoSaveJob {
@@ -273,6 +338,8 @@ public class UploadManagerImpl implements UploadManager {
         }
 
         Log.d("UploadManager", "Uploading photos: " + photoUploadRequests.size());
+
+        startBackgroundActivity();
 
         // TODO Set some sort of lock on this album so that `addPhotosToAlbum` is not yet called
         // until the last photo in `photoUploadRequests` has been prepared. Otherwise, a very fast
