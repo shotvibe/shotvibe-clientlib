@@ -3,18 +3,24 @@ package com.shotvibe.shotvibelib;
 import java.util.List;
 
 public class UploadSystemDirector {
+    /**
+     *
+     * @param backgroundTaskManager May be null
+     */
     public UploadSystemDirector(
             BackgroundUploadSession.Factory<ForAlbumTaskData> backgroundUploadSessionFactory,
             UploadStateDB uploadStateDB,
             ShotVibeAPI shotVibeAPI,
             PhotoDownloadManager photoDownloadManager,
             String uploadFilesDir,
-            BitmapProcessor bitmapProcessor) {
+            BitmapProcessor bitmapProcessor,
+            BackgroundTaskManager backgroundTaskManager) {
         mUploadStateDB = uploadStateDB;
         mShotVibeAPI = shotVibeAPI;
+        mBackgroundTaskManager = backgroundTaskManager;
 
         mUploadingPhotos = loadUploadingPhotosFromDB();
-        mUploadManager = new UploadManagerImpl(shotVibeAPI, this, uploadFilesDir, photoDownloadManager, bitmapProcessor, mUploadingPhotos);
+        mUploadManager = new UploadManagerImpl(shotVibeAPI, this, uploadFilesDir, photoDownloadManager, bitmapProcessor, mUploadingPhotos, backgroundTaskManager);
 
         final BackgroundUploadSession.Listener<ForAlbumTaskData> listener = new BackgroundUploadSession.Listener<ForAlbumTaskData>() {
             @Override
@@ -91,6 +97,7 @@ public class UploadSystemDirector {
     private final ArrayList<UploadingPhoto> mUploadingPhotos;
 
     private final ShotVibeAPI mShotVibeAPI;
+    private final BackgroundTaskManager mBackgroundTaskManager;
 
     private final BackgroundUploadSession<ForAlbumTaskData> mBackgroundUploads;
 
@@ -173,7 +180,7 @@ public class UploadSystemDirector {
                                     fetchMorePhotoIds();
                                 }
                             });
-                            break;
+                            return;
                         }
 
                         String photoId = mAvailablePhotoIds.get(0);
@@ -182,6 +189,10 @@ public class UploadSystemDirector {
                         launchForAlbumUpload(forAlbum, photoId);
                     }
                 }
+
+                // If we got here then all queued photos have been launched and are now uploading
+                // in the background
+                mUploadManager.reportAllUploadsLaunched();
             }
         } else if (uploadPlan.uploadOriginals != null) {
             // TODO ...
@@ -277,7 +288,9 @@ public class UploadSystemDirector {
         for (UploadingPhoto photo : uploadingPhotos) {
             if (photo.getUploadState() == UploadingPhoto.UploadState.Queued) {
                 allAddedToAlbum = false;
-                uploadForAlbum.add(new UploadPlan.ForAlbum(photo.getTmpFilename(), photo.getUploadStrategy()));
+                if (photo.getUploadStrategy() != UploadingPhoto.UploadStrategy.Unknown) {
+                    uploadForAlbum.add(new UploadPlan.ForAlbum(photo.getTmpFilename(), photo.getUploadStrategy()));
+                }
             } else if (allAddedToAlbum && photo.getUploadState() == UploadingPhoto.UploadState.AddedToAlbum) {
                 uploadOriginals.add(new UploadPlan.Original(photo.getTmpFilename(), photo.getPhotoId()));
             } else {
@@ -300,17 +313,66 @@ public class UploadSystemDirector {
         }
     }
 
-    public void addUploadingPhoto(long albumId, String tmpFilename, UploadingPhoto.UploadStrategy uploadStrategy) {
-        final UploadingPhoto newUploadingPhoto = new UploadingPhoto(albumId, tmpFilename, uploadStrategy, UploadingPhoto.UploadState.Queued, null);
+    /**
+     * Report that a new photo is queued to be uploaded. The new photo is not yet done processing
+     */
+    public void reportNewUploadingPhoto(long albumId, String tmpFilename) {
+        final UploadingPhoto newUploadingPhoto = new UploadingPhoto(
+                albumId,
+                tmpFilename,
+                UploadingPhoto.UploadStrategy.Unknown,
+                UploadingPhoto.UploadState.Queued,
+                null);
 
         mBackgroundUploads.processCurrentTasks(new BackgroundUploadSession.TaskProcessor<ForAlbumTaskData>() {
             @Override
             public void processTasks(List<BackgroundUploadSession.Task<ForAlbumTaskData>> currentTasks) {
-
                 mUploadingPhotos.add(newUploadingPhoto);
+                try {
+                    mUploadStateDB.insertUploadingPhoto(newUploadingPhoto);
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+    }
+
+    public void reportUploadingPhotoReady(final String tmpFilename, final UploadingPhoto.UploadStrategy uploadStrategy) {
+        mBackgroundUploads.processCurrentTasks(new BackgroundUploadSession.TaskProcessor<ForAlbumTaskData>() {
+            @Override
+            public void processTasks(List<BackgroundUploadSession.Task<ForAlbumTaskData>> currentTasks) {
+                UploadingPhoto oldUploadingPhoto = null;
+                int index = -1;
+                for (int i = 0; i < mUploadingPhotos.size(); ++i) {
+                    UploadingPhoto photo = mUploadingPhotos.get(i);
+                    if (photo.getTmpFilename().equals(tmpFilename)) {
+                        oldUploadingPhoto = photo;
+                        index = i;
+                        break;
+                    }
+                }
+
+                if (index == -1) {
+                    throw new IllegalStateException("tmpFile not found: " + tmpFilename);
+                }
+                if (oldUploadingPhoto.getUploadState() != UploadingPhoto.UploadState.Queued) {
+                    throw new IllegalStateException("reportUploadingPhotoReady with state: " + oldUploadingPhoto.getUploadState());
+                }
+                if (oldUploadingPhoto.getUploadStrategy() != UploadingPhoto.UploadStrategy.Unknown) {
+                    throw new IllegalStateException("reportUploadingPhotoReady with strategy: " + oldUploadingPhoto.getUploadStrategy());
+                }
+
+                UploadingPhoto updatedUploadingPhoto = new UploadingPhoto(
+                        oldUploadingPhoto.getAlbumId(),
+                        tmpFilename,
+                        uploadStrategy,
+                        UploadingPhoto.UploadState.Queued,
+                        null);
+
+                mUploadingPhotos.set(index, updatedUploadingPhoto);
 
                 try {
-                    mUploadStateDB.addUploadingPhoto(newUploadingPhoto);
+                    mUploadStateDB.setPhotoUploadStrategy(updatedUploadingPhoto);
                 } catch (SQLException e) {
                     throw new RuntimeException(e);
                 }
@@ -322,6 +384,7 @@ public class UploadSystemDirector {
                 Log.d("UploadSystem", "addUploadingPhoto: processUploadPlan");
                 processUploadPlan(uploadPlan, currentTasks);
 
+                // TODO End background task
             }
         });
     }

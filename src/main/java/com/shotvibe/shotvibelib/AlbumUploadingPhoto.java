@@ -8,6 +8,13 @@ public final class AlbumUploadingPhoto {
         mUploadProgress = uploadProgress;
     }
 
+    public static AlbumUploadingPhoto NewSaving(String tmpFile) {
+        if (tmpFile == null) {
+            throw new IllegalArgumentException("tmpFile cannot be null");
+        }
+        return new AlbumUploadingPhoto(tmpFile, State.Saving, null, 0.0);
+    }
+
     public static AlbumUploadingPhoto NewPreparingFiles(String tmpFile) {
         if (tmpFile == null) {
             throw new IllegalArgumentException("tmpFile cannot be null");
@@ -43,10 +50,18 @@ public final class AlbumUploadingPhoto {
     }
 
     public enum State {
+        Saving,
         PreparingFiles,
         Uploading,
         Uploaded,
         AddingToAlbum
+    }
+
+    public synchronized void setPreparingFiles() {
+        if (mState != State.Saving) {
+            throw new IllegalArgumentException("Illegal transition from state: " + mState);
+        }
+        mState = State.PreparingFiles;
     }
 
     public synchronized void setUploading() {
