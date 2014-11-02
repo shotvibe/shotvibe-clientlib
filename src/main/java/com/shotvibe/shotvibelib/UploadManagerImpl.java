@@ -4,10 +4,6 @@ import java.util.List;
 import java.util.Set;
 
 public class UploadManagerImpl implements UploadManager {
-    /**
-     *
-     * @param backgroundTaskManager May be null
-     */
     public UploadManagerImpl(
             ShotVibeAPI shotVibeAPI,
             UploadSystemDirector uploadSystemDirector,
