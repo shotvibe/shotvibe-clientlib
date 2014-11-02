@@ -3,10 +3,6 @@ package com.shotvibe.shotvibelib;
 import java.util.List;
 
 public class UploadSystemDirector {
-    /**
-     *
-     * @param backgroundTaskManager May be null
-     */
     public UploadSystemDirector(
             BackgroundUploadSession.Factory<ForAlbumTaskData> backgroundUploadSessionFactory,
             UploadStateDB uploadStateDB,
