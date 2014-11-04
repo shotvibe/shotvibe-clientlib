@@ -134,7 +134,7 @@ public class AlbumManager implements UploadManager.Listener {
         }
 
         // Add the Uploading photos to the end of album:
-        addUploadingPhotosToAlbumContents(cachedAlbumContents, mUploadManager.getUploadingPhotos(albumId));
+        addUploadingPhotosToAlbumContents(cachedAlbumContents, mUploadManager.getUploadingPhotos(albumId), mUploadManager.getUploadingOriginalPhotoIds());
 
         return cachedAlbumContents;
     }
@@ -301,7 +301,7 @@ public class AlbumManager implements UploadManager.Listener {
                 public void run() {
                     List<AlbumContentsListener> listeners = mAlbumContentsListeners.getAlbumContentsListeners(mAlbumId);
                     if (result.albumContents != null && !listeners.isEmpty()) {
-                        addUploadingPhotosToAlbumContents(result.albumContents, mUploadManager.getUploadingPhotos(mAlbumId));
+                        addUploadingPhotosToAlbumContents(result.albumContents, mUploadManager.getUploadingPhotos(mAlbumId), mUploadManager.getUploadingOriginalPhotoIds());
                     }
 
                     for (AlbumContentsListener listener : listeners) {
@@ -370,7 +370,7 @@ public class AlbumManager implements UploadManager.Listener {
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
-            addUploadingPhotosToAlbumContents(albumContents, mUploadManager.getUploadingPhotos(albumId));
+            addUploadingPhotosToAlbumContents(albumContents, mUploadManager.getUploadingPhotos(albumId), mUploadManager.getUploadingOriginalPhotoIds());
 
             for (AlbumContentsListener listener : listeners) {
                 listener.onAlbumContentsNewContent(albumId, albumContents);
@@ -378,7 +378,16 @@ public class AlbumManager implements UploadManager.Listener {
         }
     }
 
-    private static void addUploadingPhotosToAlbumContents(AlbumContents albumContents, List<AlbumPhoto> uploadingPhotos) {
+    private static void addUploadingPhotosToAlbumContents(AlbumContents albumContents, List<AlbumPhoto> uploadingPhotos, List<String> uploadingOriginalPhotoIds) {
+        // Go over all the existing AlbumServerPhotos, and mark any that are currently uploading original
+        for (AlbumPhoto p : albumContents.getPhotos()) {
+            if (p.getServerPhoto() != null) {
+                if (uploadingOriginalPhotoIds.contains(p.getServerPhoto().getId())) {
+                    p.getServerPhoto().setUploadingOriginal();
+                }
+            }
+        }
+
         // Bail out early if there are no uploadingPhotos
         if (uploadingPhotos.size() == 0) {
             return;
@@ -431,6 +440,32 @@ public class AlbumManager implements UploadManager.Listener {
     }
 
     @Override
+    public void photoUploadedOriginal(long albumId) {
+        List<AlbumContentsListener> listeners = mAlbumContentsListeners.getAlbumContentsListeners(albumId);
+
+        if (listeners.isEmpty()) {
+            return;
+        }
+
+        AlbumContents albumContents;
+        try {
+            albumContents = mShotVibeDB.getAlbumContents(albumId);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        for (AlbumContentsListener listener : mAlbumContentsListeners.getAlbumContentsListeners(albumId)) {
+            listener.onAlbumContentsUploadsProgressed(albumId);
+        }
+
+        addUploadingPhotosToAlbumContents(albumContents, mUploadManager.getUploadingPhotos(albumId), mUploadManager.getUploadingOriginalPhotoIds());
+
+        for (AlbumContentsListener listener : listeners) {
+            listener.onAlbumContentsNewContent(albumId, albumContents);
+        }
+    }
+
+    @Override
     public void photosAddedToAlbum(long albumId, AlbumContents newAlbumContents) {
         try {
             mShotVibeDB.setAlbumContents(albumId, newAlbumContents);
@@ -440,7 +475,7 @@ public class AlbumManager implements UploadManager.Listener {
 
         List<AlbumContentsListener> listeners = mAlbumContentsListeners.getAlbumContentsListeners(albumId);
         if (!listeners.isEmpty()) {
-            addUploadingPhotosToAlbumContents(newAlbumContents, mUploadManager.getUploadingPhotos(albumId));
+            addUploadingPhotosToAlbumContents(newAlbumContents, mUploadManager.getUploadingPhotos(albumId), mUploadManager.getUploadingOriginalPhotoIds());
         }
 
         for (AlbumContentsListener listener : listeners) {
