@@ -5,6 +5,8 @@ import java.util.List;
 public interface UploadManager {
     List<AlbumPhoto> getUploadingPhotos(long albumId);
 
+    List<String> getUploadingOriginalPhotoIds();
+
     void uploadPhotos(long albumId, List<PhotoUploadRequest> photoUploadRequests);
 
     /**
@@ -23,6 +25,8 @@ public interface UploadManager {
 
     public interface Listener {
         void refreshAlbum(long albumId);
+
+        void photoUploadedOriginal(long albumId);
 
         /**
          * @param newAlbumContents The exact result returned from the server. This does not contain

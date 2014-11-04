@@ -23,6 +23,8 @@ public class AlbumServerPhoto {
         mAuthor = author;
         mDateAdded = dateAdded;
         mGlances = glances;
+
+        mUploadingOriginal = false;
     }
 
     public String getId() {
@@ -57,6 +59,14 @@ public class AlbumServerPhoto {
         return (lastAccess.getTimeStamp() < mDateAdded.getTimeStamp());
     }
 
+    public void setUploadingOriginal() {
+        mUploadingOriginal = true;
+    }
+
+    public boolean getUploadingOriginal() {
+        return mUploadingOriginal;
+    }
+
     private final String mId;
 
     private final String mUrl;
@@ -66,4 +76,6 @@ public class AlbumServerPhoto {
     private final DateTime mDateAdded;
 
     private ArrayList<AlbumPhotoGlance> mGlances;
+
+    private boolean mUploadingOriginal;
 }

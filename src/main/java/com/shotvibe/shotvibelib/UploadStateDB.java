@@ -129,6 +129,21 @@ public final class UploadStateDB {
         }
     }
 
+    public void setPhotoOriginalUploaded(UploadingPhoto uploadingPhoto) throws SQLException {
+        mConn.beginTransaction();
+        try {
+            mConn.update(""
+                            + "DELETE FROM uploading_photo"
+                            + " WHERE tmp_filename=?",
+                    SQLValues.create()
+                            .add(uploadingPhoto.getTmpFilename()));
+
+            mConn.setTransactionSuccesful();
+        } finally {
+            mConn.endTransaction();
+        }
+    }
+
     public void photosAddedToAlbum(HashSet<String> tmpFilenames) throws SQLException {
         mConn.beginTransaction();
         try {

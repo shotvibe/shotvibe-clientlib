@@ -5,6 +5,7 @@ import java.util.List;
 public class UploadSystemDirector {
     public UploadSystemDirector(
             BackgroundUploadSession.Factory<ForAlbumTaskData> backgroundUploadSessionFactory,
+            BackgroundUploadSession.Factory<OriginalTaskData> originalUploadSessionFactory,
             UploadStateDB uploadStateDB,
             ShotVibeAPI shotVibeAPI,
             PhotoDownloadManager photoDownloadManager,
@@ -78,6 +79,34 @@ public class UploadSystemDirector {
 
         mBackgroundUploads = backgroundUploadSessionFactory.startSession(new ForAlbumTaskDataFactory(), listener);
 
+        final BackgroundUploadSession.Listener<OriginalTaskData> originalsListener = new BackgroundUploadSession.Listener<OriginalTaskData>() {
+
+            @Override
+            public void onTaskUploadProgress(OriginalTaskData taskData, long bytesSent, long bytesTotal) {
+                // TODO ...
+            }
+
+            @Override
+            public void onTaskUploadFinished(BackgroundUploadSession.FinishedTask<OriginalTaskData> finishedTask) {
+                final boolean successfullyUploaded = finishedTask.completedWithStatusCode()
+                        && finishedTask.getStatusCode() < 400;
+
+                final String photoId = finishedTask.getTaskData().getPhotoId();
+                final String tmpFile = finishedTask.getTaskData().getTmpFile();
+
+                if (successfullyUploaded) {
+                    long albumId = setPhotoOriginalUploaded(tmpFile, photoId);
+
+                    mUploadManager.reportOriginalUploadComplete(albumId, tmpFile, photoId);
+                } else {
+                    OriginalTaskData retryTask = new OriginalTaskData(tmpFile, photoId);
+                    launchOriginalUpload(retryTask);
+                }
+            }
+        };
+
+        mOriginalUploads = originalUploadSessionFactory.startSession(new OriginalTaskDataFactory(), originalsListener);
+
         mBackgroundUploads.processCurrentTasks(new BackgroundUploadSession.TaskProcessor<ForAlbumTaskData>() {
             @Override
             public void processTasks(List<BackgroundUploadSession.Task<ForAlbumTaskData>> currentTasks) {
@@ -96,6 +125,7 @@ public class UploadSystemDirector {
     private final BackgroundTaskManager mBackgroundTaskManager;
 
     private final BackgroundUploadSession<ForAlbumTaskData> mBackgroundUploads;
+    private final BackgroundUploadSession<OriginalTaskData> mOriginalUploads;
 
     public UploadManager getUploadManager() {
         return mUploadManager;
@@ -140,10 +170,9 @@ public class UploadSystemDirector {
         });
     }
 
-    private void processUploadPlan(UploadPlan uploadPlan, List<BackgroundUploadSession.Task<ForAlbumTaskData>> currentTasks) {
+    private void processUploadPlan(final UploadPlan uploadPlan, List<BackgroundUploadSession.Task<ForAlbumTaskData>> currentTasks) {
         if (uploadPlan.uploadForAlbum != null) {
-//            cancelAll(mOriginalUploadTasks);
-//            synchronizeTasks(mForAlbumUploadTasks, uploadPlan.uploadForAlbum);
+            cancelAllOriginalUploads();
 
             int index = 0;
 
@@ -191,8 +220,57 @@ public class UploadSystemDirector {
                 mUploadManager.reportAllUploadsLaunched();
             }
         } else if (uploadPlan.uploadOriginals != null) {
-            // TODO ...
+            Log.d("UPLOADSYSTEM", "Uploading original photos: " + uploadPlan.uploadOriginals.size());
+
+
+            mOriginalUploads.processCurrentTasks(new BackgroundUploadSession.TaskProcessor<OriginalTaskData>() {
+                @Override
+                public void processTasks(List<BackgroundUploadSession.Task<OriginalTaskData>> currentTasks) {
+                    HashSet<String> currentTaskFiles = new HashSet<String>();
+                    HashSet<String> newItemFiles = new HashSet<String>();
+                    for (BackgroundUploadSession.Task<OriginalTaskData> task : currentTasks) {
+                        currentTaskFiles.add(task.getTaskData().getTmpFile());
+                    }
+                    for (UploadPlan.Original item : uploadPlan.uploadOriginals) {
+                        newItemFiles.add(item.uploadFile);
+                    }
+
+                    // Cancel currently active tasks that are not part of the new upload plan:
+
+                    for (BackgroundUploadSession.Task<OriginalTaskData> task : currentTasks) {
+                        if (!newItemFiles.contains(task.getTaskData().getTmpFile())) {
+                            mOriginalUploads.cancelTask(task);
+                        }
+                    }
+
+                    // Add any new tasks:
+                    for (UploadPlan.Original original : uploadPlan.uploadOriginals) {
+                        if (!currentTaskFiles.contains(original.uploadFile)) {
+                            OriginalTaskData taskData = new OriginalTaskData(original.uploadFile, original.photoId);
+                            launchOriginalUpload(taskData);
+                        }
+                    }
+                }
+            });
         }
+    }
+
+    private void cancelAllOriginalUploads() {
+        mOriginalUploads.processCurrentTasks(new BackgroundUploadSession.TaskProcessor<OriginalTaskData>() {
+            @Override
+            public void processTasks(List<BackgroundUploadSession.Task<OriginalTaskData>> currentTasks) {
+                for (BackgroundUploadSession.Task<OriginalTaskData> task : currentTasks) {
+                    mOriginalUploads.cancelTask(task);
+                }
+            }
+        });
+    }
+
+    private void launchOriginalUpload(OriginalTaskData taskData) {
+        String url = ShotVibeAPI.BASE_UPLOAD_URL + "/photos/upload/" + taskData.getPhotoId() + "/original/";
+        String realUploadFile = taskData.getTmpFile();
+
+        mOriginalUploads.startUploadTask(taskData, url, realUploadFile);
     }
 
     private void launchForAlbumUpload(UploadPlan.ForAlbum forAlbum, String photoId) {
@@ -424,7 +502,37 @@ public class UploadSystemDirector {
         return updatedUploadingPhoto.getAlbumId();
     }
 
-    public void reportPhotosAddedToAlbum(final HashSet<String> tmpFiles) {
+    private long setPhotoOriginalUploaded(String tmpFilename, String photoId) {
+        UploadingPhoto oldUploadingPhoto = null;
+        int index = -1;
+        for (int i = 0; i < mUploadingPhotos.size(); ++i) {
+            UploadingPhoto photo = mUploadingPhotos.get(i);
+            if (photo.getTmpFilename().equals(tmpFilename)) {
+                oldUploadingPhoto = photo;
+                index = i;
+                break;
+            }
+        }
+
+        if (index == -1) {
+            throw new IllegalStateException("setPhotoOriginalUploaded not found");
+        }
+        if (oldUploadingPhoto.getUploadState() != UploadingPhoto.UploadState.AddedToAlbum) {
+            throw new IllegalStateException("setPhotoOriginalUploaded with photo that was not AddedToAlbum");
+        }
+
+        mUploadingPhotos.remove(index);
+
+        try {
+            mUploadStateDB.setPhotoOriginalUploaded(oldUploadingPhoto);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        return oldUploadingPhoto.getAlbumId();
+    }
+
+    public void reportPhotosAddedToAlbum(final long albumId, final HashSet<String> tmpFiles) {
         mBackgroundUploads.processCurrentTasks(new BackgroundUploadSession.TaskProcessor<ForAlbumTaskData>() {
             @Override
             public void processTasks(List<BackgroundUploadSession.Task<ForAlbumTaskData>> currentTasks) {
@@ -435,6 +543,8 @@ public class UploadSystemDirector {
 
                 ArrayList<UploadingPhoto> newUploadingPhotos = new ArrayList<UploadingPhoto>();
 
+                ArrayList<String> newUploadOriginalPhotoIds = new ArrayList<String>();
+
                 for (UploadingPhoto photo : mUploadingPhotos) {
                     if (tmpFiles.contains(photo.getTmpFilename())) {
                         if (photo.getUploadStrategy() == UploadingPhoto.UploadStrategy.UploadTwoStage) {
@@ -444,6 +554,8 @@ public class UploadSystemDirector {
                                     photo.getUploadStrategy(),
                                     UploadingPhoto.UploadState.AddedToAlbum,
                                     photo.getPhotoId()));
+
+                            newUploadOriginalPhotoIds.add(photo.getPhotoId());
                         }
                     } else {
                         newUploadingPhotos.add(photo);
@@ -457,6 +569,10 @@ public class UploadSystemDirector {
                     mUploadStateDB.photosAddedToAlbum(tmpFiles);
                 } catch (SQLException e) {
                     throw new RuntimeException(e);
+                }
+
+                if (!newUploadOriginalPhotoIds.isEmpty()) {
+                    mUploadManager.reportNewOriginalUploads(albumId, newUploadOriginalPhotoIds);
                 }
 
                 UploadPlan uploadPlan = getUploadPlan(mUploadingPhotos);
@@ -532,5 +648,51 @@ public class UploadSystemDirector {
         private final String mTmpFile;
         private final String mPhotoId;
         private final UploadingPhoto.UploadStrategy mUploadStrategy;
+    }
+
+    public static class OriginalTaskDataFactory implements BackgroundUploadSession.TaskDataFactory<OriginalTaskData> {
+        @Override
+        public String serialize(OriginalTaskData taskData) {
+            JSONObject obj = new JSONObject();
+            obj.put("tmpFile", taskData.getTmpFile());
+            obj.put("photoId", taskData.getPhotoId());
+            return obj.toString();
+        }
+
+        @Override
+        public OriginalTaskData deserialize(String s) {
+            try {
+                JSONObject obj = JSONObject.Parse(s);
+                String tmpFile = obj.getString("tmpFile");
+                String photoId = obj.getString("photoId");
+                return new OriginalTaskData(tmpFile, photoId);
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    public static class OriginalTaskData {
+        public OriginalTaskData(String tmpFile, String photoId) {
+            if (tmpFile == null) {
+                throw new IllegalArgumentException("tmpFile cannot be null");
+            }
+            if (photoId == null) {
+                throw new IllegalArgumentException("photoId cannot be null");
+            }
+            mTmpFile = tmpFile;
+            mPhotoId = photoId;
+        }
+
+        public String getTmpFile() {
+            return mTmpFile;
+        }
+
+        public String getPhotoId() {
+            return mPhotoId;
+        }
+
+        private final String mTmpFile;
+        private final String mPhotoId;
     }
 }

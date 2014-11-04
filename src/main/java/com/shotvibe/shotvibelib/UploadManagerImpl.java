@@ -101,6 +101,38 @@ public class UploadManagerImpl implements UploadManager {
         });
     }
 
+    public void reportOriginalUploadComplete(final long albumId, String tmpFile, String photoId) {
+        // TODO Delete tmpFile and also resized versions
+
+        synchronized (mUploadingOriginalPhotoIds) {
+            mUploadingOriginalPhotoIds.remove(photoId);
+        }
+
+        ThreadUtil.runInMainThread(new ThreadUtil.Runnable() {
+            @Override
+            public void run() {
+                if (mListener != null) {
+                    mListener.photoUploadedOriginal(albumId);
+                }
+            }
+        });
+    }
+
+    public void reportNewOriginalUploads(final long albumId, ArrayList<String> newUploadOriginalPhotoIds) {
+        synchronized (mUploadingOriginalPhotoIds) {
+            mUploadingOriginalPhotoIds.addAll(newUploadOriginalPhotoIds);
+        }
+
+        ThreadUtil.runInMainThread(new ThreadUtil.Runnable() {
+            @Override
+            public void run() {
+                if (mListener != null) {
+                    mListener.photoUploadedOriginal(albumId);
+                }
+            }
+        });
+    }
+
     public void checkAndAddToAlbum(final long albumId) {
         ArrayList<AlbumUploadingPhoto> toAddToAlbum = null;
         synchronized (mUploadingPhotos) {
@@ -159,7 +191,7 @@ public class UploadManagerImpl implements UploadManager {
             mUploadingPhotos.remove(albumId, photos);
         }
 
-        mUploadSystemDirector.reportPhotosAddedToAlbum(tmpFiles);
+        mUploadSystemDirector.reportPhotosAddedToAlbum(albumId, tmpFiles);
 
         // This is a nice enhancement. Instead of the app later needing to download the thumbnails
         // from the server, we use the thumbnails that we already have
@@ -207,6 +239,10 @@ public class UploadManagerImpl implements UploadManager {
             } else if (photo.getUploadState() == UploadingPhoto.UploadState.Uploaded) {
                 AlbumUploadingPhoto albumUploadingPhoto = AlbumUploadingPhoto.NewUploaded(photo.getTmpFilename(), photo.getPhotoId());
                 mUploadingPhotos.addUploadingPhoto(photo.getAlbumId(), albumUploadingPhoto);
+            } else if (photo.getUploadState() == UploadingPhoto.UploadState.AddedToAlbum) {
+                synchronized (mUploadingOriginalPhotoIds) {
+                    mUploadingOriginalPhotoIds.add(photo.getPhotoId());
+                }
             }
         }
 
@@ -268,6 +304,17 @@ public class UploadManagerImpl implements UploadManager {
             for (AlbumUploadingPhoto albumUploadingPhoto : mUploadingPhotos.getAlbumUploadingPhotos(albumId)) {
                 result.add(new AlbumPhoto(albumUploadingPhoto));
             }
+        }
+
+        return result;
+    }
+
+    @Override
+    public List<String> getUploadingOriginalPhotoIds() {
+        ArrayList<String> result = new ArrayList<String>();
+
+        synchronized (mUploadingOriginalPhotoIds) {
+            result.addAll(mUploadingOriginalPhotoIds);
         }
 
         return result;
@@ -507,6 +554,8 @@ public class UploadManagerImpl implements UploadManager {
         final long THRESHOLD_PERCENT = 85;
         return 100 * resizedArea / originalArea >= THRESHOLD_PERCENT;
     }
+
+    private final ArrayList<String> mUploadingOriginalPhotoIds = new ArrayList<String>();
 
     // Must be accessed only from the main thread
     private final UploadingPhotosContainer mUploadingPhotos;
