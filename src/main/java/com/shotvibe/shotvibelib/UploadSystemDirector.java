@@ -91,10 +91,15 @@ public class UploadSystemDirector {
                 final boolean successfullyUploaded = finishedTask.completedWithStatusCode()
                         && finishedTask.getStatusCode() < 400;
 
+                final boolean photoWasDeletedFromServer = finishedTask.completedWithStatusCode()
+                        && finishedTask.getStatusCode() == 404;
+
+                Log.d("UploadSystem", "original finished (" + finishedTask.completedWithStatusCode() + ") " + finishedTask.getStatusCode());
+
                 final String photoId = finishedTask.getTaskData().getPhotoId();
                 final String tmpFile = finishedTask.getTaskData().getTmpFile();
 
-                if (successfullyUploaded) {
+                if (successfullyUploaded || photoWasDeletedFromServer) {
                     long albumId = setPhotoOriginalUploaded(tmpFile, photoId);
 
                     mUploadManager.reportOriginalUploadComplete(albumId, tmpFile, photoId);
