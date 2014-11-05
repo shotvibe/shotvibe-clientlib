@@ -133,8 +133,10 @@ public class AlbumManager implements UploadManager.Listener {
             throw new RuntimeException(e);
         }
 
-        // Add the Uploading photos to the end of album:
-        addUploadingPhotosToAlbumContents(cachedAlbumContents, mUploadManager.getUploadingPhotos(albumId), mUploadManager.getUploadingOriginalPhotoIds());
+        if (cachedAlbumContents != null) {
+            // Add the Uploading photos to the end of album:
+            addUploadingPhotosToAlbumContents(cachedAlbumContents, mUploadManager.getUploadingPhotos(albumId), mUploadManager.getUploadingOriginalPhotoIds());
+        }
 
         return cachedAlbumContents;
     }
