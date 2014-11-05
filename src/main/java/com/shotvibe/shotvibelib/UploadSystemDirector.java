@@ -8,12 +8,14 @@ public class UploadSystemDirector {
             BackgroundUploadSession.Factory<OriginalTaskData> originalUploadSessionFactory,
             UploadStateDB uploadStateDB,
             ShotVibeAPI shotVibeAPI,
+            FileSystemManager fileSystemManager,
             PhotoDownloadManager photoDownloadManager,
             String uploadFilesDir,
             BitmapProcessor bitmapProcessor,
             BackgroundTaskManager backgroundTaskManager) {
         mUploadStateDB = uploadStateDB;
         mShotVibeAPI = shotVibeAPI;
+        mFileSystemManager = fileSystemManager;
         mBackgroundTaskManager = backgroundTaskManager;
 
         mUploadingPhotos = loadUploadingPhotosFromDB();
@@ -102,6 +104,8 @@ public class UploadSystemDirector {
                 if (successfullyUploaded || photoWasDeletedFromServer) {
                     long albumId = setPhotoOriginalUploaded(tmpFile, photoId);
 
+                    mFileSystemManager.deleteFile(tmpFile);
+
                     mUploadManager.reportOriginalUploadComplete(albumId, tmpFile, photoId);
                 } else {
                     OriginalTaskData retryTask = new OriginalTaskData(tmpFile, photoId);
@@ -127,6 +131,7 @@ public class UploadSystemDirector {
     private final ArrayList<UploadingPhoto> mUploadingPhotos;
 
     private final ShotVibeAPI mShotVibeAPI;
+    private final FileSystemManager mFileSystemManager;
     private final BackgroundTaskManager mBackgroundTaskManager;
 
     private final BackgroundUploadSession<ForAlbumTaskData> mBackgroundUploads;
@@ -552,6 +557,10 @@ public class UploadSystemDirector {
 
                 for (UploadingPhoto photo : mUploadingPhotos) {
                     if (tmpFiles.contains(photo.getTmpFilename())) {
+                        // Delete the RESIZED file, it is not longer needed
+                        mFileSystemManager.deleteFile(photo.getTmpFilename() + UploadManager.RESIZED_FILE_SUFFIX);
+                        // Note: The THUMB file is not removed, UploadManagerImpl handles it
+
                         if (photo.getUploadStrategy() == UploadingPhoto.UploadStrategy.UploadTwoStage) {
                             newUploadingPhotos.add(new UploadingPhoto(
                                     photo.getAlbumId(),
@@ -561,6 +570,9 @@ public class UploadSystemDirector {
                                     photo.getPhotoId()));
 
                             newUploadOriginalPhotoIds.add(photo.getPhotoId());
+                        } else {
+                            // The original file was directly uploaded, so it can be deleted now
+                            mFileSystemManager.deleteFile(photo.getTmpFilename());
                         }
                     } else {
                         newUploadingPhotos.add(photo);

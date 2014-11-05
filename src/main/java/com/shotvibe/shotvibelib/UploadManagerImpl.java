@@ -102,8 +102,6 @@ public class UploadManagerImpl implements UploadManager {
     }
 
     public void reportOriginalUploadComplete(final long albumId, String tmpFile, String photoId) {
-        // TODO Delete tmpFile and also resized versions
-
         synchronized (mUploadingOriginalPhotoIds) {
             mUploadingOriginalPhotoIds.remove(photoId);
         }
@@ -199,8 +197,6 @@ public class UploadManagerImpl implements UploadManager {
             String thumbFile = addedPhoto.getTmpFile() + THUMB_FILE_SUFFIX;
             mPhotoDownloadManager.takePhotoThumbnailFile(thumbFile, addedPhoto.getPhotoId());
         }
-
-        // TODO Delete uploaded tmp files
 
         addToAlbumBackgroundTask.reportFinished();
 
