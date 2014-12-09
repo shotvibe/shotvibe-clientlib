@@ -16,6 +16,13 @@ public final class UploadStateDBMigrations {
                 + " WHERE upload_state >= 2");
     }
 
+    static void upgradeFromVersion_2_to_3(SQLConnection conn) throws SQLException {
+        // This is a drastic measure: Server issues during 2014-12-06 may have caused some
+        // inconsistencies with uploads so we are resetting the upload system in this app update
+        // by deleting all in-progress uploads
+        conn.update("DELETE FROM uploading_photo");
+    }
+
     private UploadStateDBMigrations() {
         // Not used
     }

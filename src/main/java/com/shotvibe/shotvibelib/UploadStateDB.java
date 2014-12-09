@@ -7,7 +7,7 @@ package com.shotvibe.shotvibelib;
  */
 public final class UploadStateDB {
     private static final String DATABASE_FILENAME = "shotvibe_upload_state.db";
-    private static final int DATABASE_VERSION = 2;
+    private static final int DATABASE_VERSION = 3;
 
     public static class Recipe extends SQLDatabaseRecipe<UploadStateDB> {
         public Recipe() {
@@ -23,6 +23,10 @@ public final class UploadStateDB {
         public void upgradeDB(SQLConnection conn, int oldVersion) throws SQLException {
             if (oldVersion <= 1) {
                 UploadStateDBMigrations.upgradeFromVersion_1_to_2(conn);
+            }
+
+            if (oldVersion < 3) {
+                UploadStateDBMigrations.upgradeFromVersion_2_to_3(conn);
             }
         }
 
