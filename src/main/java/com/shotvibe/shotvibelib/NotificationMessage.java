@@ -3,6 +3,7 @@ package com.shotvibe.shotvibelib;
 public abstract class NotificationMessage {
     public interface NotificationHandler {
         void Handle(NotificationMessage.TestMessage msg);
+        void Handle(NotificationMessage.AlbumListSync msg);
         void Handle(NotificationMessage.AlbumSync msg);
         void Handle(NotificationMessage.PhotosAdded msg);
         void Handle(NotificationMessage.AddedToAlbum msg);
@@ -27,6 +28,8 @@ public abstract class NotificationMessage {
             type = msg.getString("type");
             if (type.equals("test_message")) {
                 return TestMessage.parse(msg);
+            } else if (type.equals("album_list_sync")) {
+                return AlbumListSync.parse(msg);
             } else if (type.equals("album_sync")) {
                 return AlbumSync.parse(msg);
             } else if (type.equals("photos_added")) {
@@ -58,6 +61,17 @@ public abstract class NotificationMessage {
         }
 
         private final String mMessage;
+
+        @Override
+        public void handle(NotificationHandler handler) {
+            handler.Handle(this);
+        }
+    }
+
+    public static final class AlbumListSync extends NotificationMessage {
+        public static AlbumListSync parse(JSONObject msg) throws ParseException, JSONException {
+            return new AlbumListSync();
+        }
 
         @Override
         public void handle(NotificationHandler handler) {
