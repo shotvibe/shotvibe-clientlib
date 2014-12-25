@@ -360,6 +360,164 @@ public final class ShotVibeDB {
         }
     }
 
+    private static void setAlbumRow(SQLConnection conn, AlbumContents albumContents) throws SQLException {
+        conn.update(""
+                        + "INSERT OR REPLACE INTO album (album_id, name, creator_id, date_created, last_updated, last_etag, num_new_photos, last_access)"
+                        + " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                SQLValues.create()
+                        .add(albumContents.getId())
+                        .add(albumContents.getName())
+                        .add(albumContents.getCreator().getMemberId())
+                        .add(dateTimeToSQLValue(albumContents.getDateCreated()))
+                        .add(dateTimeToSQLValue(albumContents.getDateUpdated()))
+                        .add(albumContents.getEtag())
+                        .add(albumContents.getNumNewPhotos())
+                        .addNullable(albumContents.getLastAccess() == null ? null : dateTimeToSQLValue(albumContents.getLastAccess())));
+    }
+
+    private static void saveAlbumPhotos(SQLConnection conn, long albumId, List<AlbumPhoto> photos, HashMap<Long, AlbumUser> allUsers) throws SQLException {
+        // Keep track of all the new photoIds in an efficient data structure
+        HashSet<String> photoIds = new HashSet<String>();
+
+        int num = 0;
+        for (AlbumPhoto albumPhoto : photos) {
+            AlbumServerPhoto photo = albumPhoto.getServerPhoto();
+            if (photo == null) {
+                throw new IllegalArgumentException("albumContents is not allowed to contain an AlbumUploadingPhoto: " + albumPhoto.getUploadingPhoto().toString());
+            }
+
+            photoIds.add(photo.getId());
+
+            conn.update(""
+                            + "INSERT OR REPLACE INTO photo (photo_album, num, photo_id, url, author_id, created)"
+                            + " VALUES (?, ?, ?, ?, ?, ?)",
+                    SQLValues.create()
+                            .add(albumId)
+                            .add(num++)
+                            .add(photo.getId())
+                            .add(photo.getUrl())
+                            .add(photo.getAuthor().getMemberId())
+                            .add(dateTimeToSQLValue(photo.getDateAdded())));
+
+            AlbumUser user = photo.getAuthor();
+            allUsers.put(user.getMemberId(), user);
+
+            // Save Photo Glances:
+
+            // Keep track of all the new authorIds in an efficient data structure
+            HashSet<Long> authorIds = new HashSet<Long>();
+
+            int glanceNum = 0;
+            for (AlbumPhotoGlance glance : photo.getGlances()) {
+                AlbumUser glanceAuthor = glance.getAuthor();
+
+                authorIds.add(glanceAuthor.getMemberId());
+
+                conn.update(""
+                                + "INSERT OR REPLACE INTO photo_glance (photo_id, author_id, emoticon_name, num)"
+                                + " VALUES (?, ?, ?, ?)",
+                        SQLValues.create()
+                                .add(photo.getId())
+                                .add(glanceAuthor.getMemberId())
+                                .add(glance.getEmoticonName())
+                                .add(glanceNum));
+                glanceNum++;
+
+                allUsers.put(glanceAuthor.getMemberId(), glanceAuthor);
+            }
+
+            // Delete any old rows in the database that are not in authorIds:
+            SQLCursor glancesCursor = conn.query(""
+                            + "SELECT author_id"
+                            + " FROM photo_glance"
+                            + " WHERE photo_id=?",
+                    SQLValues.create()
+                            .add(photo.getId()));
+            try {
+                while (glancesCursor.moveToNext()) {
+                    long id = glancesCursor.getLong(0);
+                    if (!authorIds.contains(id)) {
+                        conn.update(""
+                                        + "DELETE FROM photo_glance"
+                                        + " WHERE photo_id=? AND author_id=?",
+                                SQLValues.create()
+                                        .add(photo.getId())
+                                        .add(id));
+                    }
+                }
+            } finally {
+                glancesCursor.close();
+            }
+        }
+
+        // Delete any old rows in the database that are not in photIds:
+        SQLCursor photosCursor = conn.query(""
+                        + "SELECT photo_id"
+                        + " FROM photo"
+                        + " WHERE photo_album=?",
+                SQLValues.create()
+                        .add(albumId));
+
+        try {
+            while (photosCursor.moveToNext()) {
+                String id = photosCursor.getString(0);
+                if (!photoIds.contains(id)) {
+                    conn.update(""
+                                    + "DELETE FROM photo"
+                                    + " WHERE photo_album=? AND photo_id=?",
+                            SQLValues.create()
+                                    .add(albumId)
+                                    .add(id));
+                }
+            }
+        } finally {
+            photosCursor.close();
+        }
+    }
+
+    private static void saveAlbumMembers(SQLConnection conn, long albumId, List<AlbumMember> albumMembers, HashMap<Long, AlbumUser> allUsers) throws SQLException {
+        // Keep track of all the new memberIds in an efficient data structure
+        HashSet<Long> memberIds = new HashSet<Long>();
+
+        for (AlbumMember member : albumMembers) {
+            AlbumUser user = member.getUser();
+
+            memberIds.add(user.getMemberId());
+
+            conn.update(""
+                            + "INSERT OR REPLACE INTO album_member (album_id, user_id)"
+                            + " VALUES (?, ?)",
+                    SQLValues.create()
+                            .add(albumId)
+                            .add(user.getMemberId()));
+
+            allUsers.put(user.getMemberId(), user);
+        }
+
+        // Delete any old rows in the database that are not in memberIds:
+        SQLCursor membersCursor = conn.query(""
+                        + "SELECT user_id"
+                        + " FROM album_member"
+                        + " WHERE album_member.album_id=?",
+                SQLValues.create()
+                        .add(albumId));
+        try {
+            while (membersCursor.moveToNext()) {
+                long id = membersCursor.getLong(0);
+                if (!memberIds.contains(id)) {
+                    conn.update(""
+                                    + "DELETE FROM album_member"
+                                    + " WHERE album_member.album_id=? AND user_id=?",
+                            SQLValues.create()
+                                    .add(albumId)
+                                    .add(id));
+                }
+            }
+        } finally {
+            membersCursor.close();
+        }
+    }
+
     /**
      * @param albumId
      * @param albumContents Must contain only photos of type AlbumServerPhoto, no AlbumUploadingPhotos allowed!
@@ -369,19 +527,7 @@ public final class ShotVibeDB {
         try {
             saveUserToDB(mConn, albumContents.getCreator());
 
-            mConn.update(""
-                    + "INSERT OR REPLACE INTO album (album_id, name, creator_id, date_created, last_updated, last_etag, num_new_photos, last_access)"
-                    + " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    SQLValues.create()
-                            .add(albumContents.getId())
-                            .add(albumContents.getName())
-                            .add(albumContents.getCreator().getMemberId())
-                            .add(dateTimeToSQLValue(albumContents.getDateCreated()))
-                            .add(dateTimeToSQLValue(albumContents.getDateUpdated()))
-                            .add(albumContents.getEtag())
-                            .add(albumContents.getNumNewPhotos())
-                            .addNullable(albumContents.getLastAccess() == null ? null : dateTimeToSQLValue(albumContents.getLastAccess())));
-
+            setAlbumRow(mConn, albumContents);
 
             // Will be filled with all the users from:
             //  - The authors of all the photos
@@ -389,144 +535,8 @@ public final class ShotVibeDB {
             // And then will be written to the DB
             HashMap<Long, AlbumUser> allUsers = new HashMap<Long, AlbumUser>();
 
-            // Keep track of all the new photoIds in an efficient data structure
-            HashSet<String> photoIds = new HashSet<String>();
-
-            int num = 0;
-            for (AlbumPhoto albumPhoto : albumContents.getPhotos()) {
-                AlbumServerPhoto photo = albumPhoto.getServerPhoto();
-                if (photo == null) {
-                    throw new IllegalArgumentException("albumContents is not allowed to contain an AlbumUploadingPhoto: " + albumPhoto.getUploadingPhoto().toString());
-                }
-
-                photoIds.add(photo.getId());
-
-                mConn.update(""
-                        + "INSERT OR REPLACE INTO photo (photo_album, num, photo_id, url, author_id, created)"
-                        + " VALUES (?, ?, ?, ?, ?, ?)",
-                        SQLValues.create()
-                                .add(albumId)
-                                .add(num++)
-                                .add(photo.getId())
-                                .add(photo.getUrl())
-                                .add(photo.getAuthor().getMemberId())
-                                .add(dateTimeToSQLValue(photo.getDateAdded())));
-
-                AlbumUser user = photo.getAuthor();
-                allUsers.put(user.getMemberId(), user);
-
-                // Save Photo Glances:
-
-                // Keep track of all the new authorIds in an efficient data structure
-                HashSet<Long> authorIds = new HashSet<Long>();
-
-                int glanceNum = 0;
-                for (AlbumPhotoGlance glance : photo.getGlances()) {
-                    AlbumUser glanceAuthor = glance.getAuthor();
-
-                    authorIds.add(glanceAuthor.getMemberId());
-
-                    mConn.update(""
-                                    + "INSERT OR REPLACE INTO photo_glance (photo_id, author_id, emoticon_name, num)"
-                                    + " VALUES (?, ?, ?, ?)",
-                            SQLValues.create()
-                                    .add(photo.getId())
-                                    .add(glanceAuthor.getMemberId())
-                                    .add(glance.getEmoticonName())
-                                    .add(glanceNum));
-                    glanceNum++;
-
-                    allUsers.put(glanceAuthor.getMemberId(), glanceAuthor);
-                }
-
-                // Delete any old rows in the database that are not in authorIds:
-                SQLCursor glancesCursor = mConn.query(""
-                                + "SELECT author_id"
-                                + " FROM photo_glance"
-                                + " WHERE photo_id=?",
-                        SQLValues.create()
-                                .add(photo.getId()));
-                try {
-                    while (glancesCursor.moveToNext()) {
-                        long id = glancesCursor.getLong(0);
-                        if (!authorIds.contains(id)) {
-                            mConn.update(""
-                                            + "DELETE FROM photo_glance"
-                                            + " WHERE photo_id=? AND author_id=?",
-                                    SQLValues.create()
-                                            .add(photo.getId())
-                                            .add(id));
-                        }
-                    }
-                } finally {
-                    glancesCursor.close();
-                }
-            }
-
-            // Delete any old rows in the database that are not in photIds:
-            SQLCursor photosCursor = mConn.query(""
-                    + "SELECT photo_id"
-                    + " FROM photo"
-                    + " WHERE photo_album=?",
-                    SQLValues.create()
-                            .add(albumId));
-
-            try {
-                while (photosCursor.moveToNext()) {
-                    String id = photosCursor.getString(0);
-                    if (!photoIds.contains(id)) {
-                        mConn.update(""
-                                + "DELETE FROM photo"
-                                + " WHERE photo_album=? AND photo_id=?",
-                                SQLValues.create()
-                                        .add(albumId)
-                                        .add(id));
-                    }
-                }
-            } finally {
-                photosCursor.close();
-            }
-
-            // Keep track of all the new memberIds in an efficient data structure
-            HashSet<Long> memberIds = new HashSet<Long>();
-
-            for (AlbumMember member : albumContents.getMembers()) {
-                AlbumUser user = member.getUser();
-
-                memberIds.add(user.getMemberId());
-
-                mConn.update(""
-                        + "INSERT OR REPLACE INTO album_member (album_id, user_id)"
-                        + " VALUES (?, ?)",
-                        SQLValues.create()
-                                .add(albumId)
-                                .add(user.getMemberId()));
-
-                allUsers.put(user.getMemberId(), user);
-            }
-
-            // Delete any old rows in the database that are not in memberIds:
-            SQLCursor membersCursor = mConn.query(""
-                    + "SELECT user_id"
-                    + " FROM album_member"
-                    + " WHERE album_member.album_id=?",
-                    SQLValues.create()
-                            .add(albumId));
-            try {
-                while (membersCursor.moveToNext()) {
-                    long id = membersCursor.getLong(0);
-                    if (!memberIds.contains(id)) {
-                        mConn.update(""
-                                + "DELETE FROM album_member"
-                                + " WHERE album_member.album_id=? AND user_id=?",
-                                SQLValues.create()
-                                        .add(albumId)
-                                        .add(id));
-                    }
-                }
-            } finally {
-                membersCursor.close();
-            }
+            saveAlbumPhotos(mConn, albumId, albumContents.getPhotos(), allUsers);
+            saveAlbumMembers(mConn, albumId, albumContents.getMembers(), allUsers);
 
             for (Map.Entry<Long, AlbumUser> entry : allUsers.entrySet()) {
                 AlbumUser user = entry.getValue();
