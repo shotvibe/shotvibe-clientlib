@@ -5,7 +5,7 @@ import java.util.Map;
 
 public final class ShotVibeDB {
     private static final String DATABASE_FILENAME = "shotvibe_main.db";
-    private static final int DATABASE_VERSION = 6;
+    private static final int DATABASE_VERSION = 7;
 
     public static class Recipe extends SQLDatabaseRecipe<ShotVibeDB> {
         public Recipe() {
@@ -157,7 +157,10 @@ public final class ShotVibeDB {
                 // TODO Load real values from DB
                 ArrayList<AlbumPhotoGlance> dummy = new ArrayList<AlbumPhotoGlance>();
 
-                results.add(new AlbumPhoto(new AlbumServerPhoto(photoId, photoUrl, photoAuthor, photoDateAdded, dummy)));
+                // Latest Photos does not contain comments
+                ArrayList<AlbumPhotoComment> emptyComments = new ArrayList<AlbumPhotoComment>();
+
+                results.add(new AlbumPhoto(new AlbumServerPhoto(photoId, photoUrl, photoAuthor, photoDateAdded, emptyComments, dummy)));
             }
             return results;
         } finally {
@@ -324,7 +327,9 @@ public final class ShotVibeDB {
                         gCursor.close();
                     }
 
-                    albumPhotos.add(new AlbumPhoto(new AlbumServerPhoto(photoId, photoUrl, photoAuthor, photoDateAdded, photoGlances)));
+                    ArrayList<AlbumPhotoComment> photoComments = readPhotoComments(mConn, photoId);
+
+                    albumPhotos.add(new AlbumPhoto(new AlbumServerPhoto(photoId, photoUrl, photoAuthor, photoDateAdded, photoComments, photoGlances)));
                 }
             } finally {
                 cursor.close();
@@ -358,6 +363,35 @@ public final class ShotVibeDB {
         } finally {
             mConn.endTransaction();
         }
+    }
+
+    private static ArrayList<AlbumPhotoComment> readPhotoComments(SQLConnection conn, String photoId) throws SQLException {
+        ArrayList<AlbumPhotoComment> photoComments = new ArrayList<AlbumPhotoComment>();
+        SQLCursor cursor = conn.query(""
+                        + "SELECT photo_comment.author_id, user.nickname, user.avatar_url, photo_comment.date_created, photo_comment.client_msg_id, photo_comment.comment_text"
+                        + " FROM photo_comment"
+                        + " LEFT OUTER JOIN user"
+                        + " ON photo_comment.author_id = user.user_id"
+                        + " WHERE photo_comment.photo_id=?"
+                        + " ORDER BY photo_comment.date_created ASC",
+                SQLValues.create()
+                        .add(photoId));
+        try {
+            while (cursor.moveToNext()) {
+                long authorId = cursor.getLong(0);
+                String authorNickname = cursor.getString(1);
+                String authorAvatarUrl = cursor.getString(2);
+                DateTime dateCreated = cursorGetDateTime(cursor, 3);
+                long clientMsgId = cursor.getLong(4);
+                String commentText = cursor.getString(5);
+                AlbumUser author = new AlbumUser(authorId, authorNickname, authorAvatarUrl);
+                photoComments.add(new AlbumPhotoComment(author, clientMsgId, dateCreated, commentText));
+            }
+        } finally {
+            cursor.close();
+        }
+
+        return photoComments;
     }
 
     private static void setAlbumRow(SQLConnection conn, AlbumContents albumContents) throws SQLException {
@@ -448,6 +482,8 @@ public final class ShotVibeDB {
             } finally {
                 glancesCursor.close();
             }
+
+            savePhotoComments(conn, photo.getId(), photo.getComments(), allUsers);
         }
 
         // Delete any old rows in the database that are not in photIds:
@@ -472,6 +508,55 @@ public final class ShotVibeDB {
             }
         } finally {
             photosCursor.close();
+        }
+    }
+
+    private static void savePhotoComments(SQLConnection conn, String photoId, List<AlbumPhotoComment> comments, HashMap<Long, AlbumUser> allUsers) throws SQLException {
+        for (AlbumPhotoComment comment : comments) {
+            conn.update(""
+                            + "INSERT OR REPLACE INTO photo_comment (photo_id, date_created, author_id, client_msg_id, comment_text)"
+                            + " VALUES (?, ?, ?, ?, ?)",
+                    SQLValues.create()
+                            .add(photoId)
+                            .add(dateTimeToSQLValue(comment.getDateCreated()))
+                            .add(comment.getAuthor().getMemberId())
+                            .add(comment.getClientMsgId())
+                            .add(comment.getCommentText()));
+
+            allUsers.put(comment.getAuthor().getMemberId(), comment.getAuthor());
+        }
+
+        // Delete any old comments in the database that are not in comments:
+        SQLCursor commentsCursor = conn.query(""
+                        + "SELECT author_id, client_msg_id"
+                        + " FROM photo_comment"
+                        + " WHERE photo_id=?",
+                SQLValues.create()
+                        .add(photoId));
+        try {
+            while (commentsCursor.moveToNext()) {
+                long authorId = commentsCursor.getLong(0);
+                long clientMsgId = commentsCursor.getLong(1);
+                // Check if there is a comment matching authorId + clientMsgId
+                boolean foundMatch = false;
+                for (AlbumPhotoComment c : comments) {
+                    if (c.getAuthor().getMemberId() == authorId && c.getClientMsgId() == clientMsgId) {
+                        foundMatch = true;
+                        break;
+                    }
+                }
+                if (!foundMatch) {
+                    conn.update(""
+                                    + "DELETE FROM photo_comment"
+                                    + " WHERE photo_id=? AND author_id=? AND client_msg_id",
+                            SQLValues.create()
+                                    .add(photoId)
+                                    .add(authorId)
+                                    .add(clientMsgId));
+                }
+            }
+        } finally {
+            commentsCursor.close();
         }
     }
 
