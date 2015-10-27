@@ -7,6 +7,7 @@ public abstract class NotificationMessage {
         void Handle(NotificationMessage.AlbumSync msg);
         void Handle(NotificationMessage.PhotosAdded msg);
         void Handle(NotificationMessage.AddedToAlbum msg);
+        void Handle(NotificationMessage.PhotoComment msg);
         void Handle(NotificationMessage.PhotoGlance msg);
     }
 
@@ -36,6 +37,8 @@ public abstract class NotificationMessage {
                 return PhotosAdded.parse(msg);
             } else if (type.equals("added_to_album")) {
                 return AddedToAlbum.parse(msg);
+            } else if (type.equals("photo_comment")) {
+                return PhotoComment.parse(msg);
             } else if (type.equals("photo_glance")) {
                 return PhotoGlance.parse(msg);
             } else {
@@ -175,6 +178,50 @@ public abstract class NotificationMessage {
         private final long mAlbumId;
         private final String mAdderName;
         private final String mAlbumName;
+
+        @Override
+        public void handle(NotificationHandler handler) {
+            handler.Handle(this);
+        }
+    }
+
+    public static final class PhotoComment extends NotificationMessage {
+        public static PhotoComment parse(JSONObject msg) throws ParseException, JSONException {
+            long albumId = msg.getLong("album_id");
+            String photoId = msg.getString("photo_id");
+            String albumName = msg.getString("album_name");
+            String commentAuthorNickname = msg.getString("comment_author_nickname");
+
+            return new PhotoComment(albumId, photoId, albumName, commentAuthorNickname);
+        }
+
+        private PhotoComment(long albumId, String photoId, String albumName, String commentAuthorNickname) {
+            mAlbumId = albumId;
+            mPhotoId = photoId;
+            mAlbumName = albumName;
+            mCommentAuthorNickname = commentAuthorNickname;
+        }
+
+        public long getAlbumId() {
+            return mAlbumId;
+        }
+
+        public String getPhotoId() {
+            return mPhotoId;
+        }
+
+        public String getAlbumName() {
+            return mAlbumName;
+        }
+
+        public String getCommentAuthorNickname() {
+            return mCommentAuthorNickname;
+        }
+
+        private final long mAlbumId;
+        private final String mPhotoId;
+        private final String mAlbumName;
+        private final String mCommentAuthorNickname;
 
         @Override
         public void handle(NotificationHandler handler) {

@@ -56,6 +56,24 @@ created DATETIME NOT NULL,
 UNIQUE(photo_album, photo_id)
 );
 
+CREATE TABLE photo_comment(
+-- The photo that this comment belongs to
+photo_id TEXT REFERENCES photo(photo_id),
+
+-- The date the comment was posted
+date_created DATETIME NOT NULL,
+
+-- The user who created this comment
+author_id INTEGER REFERENCES username,
+
+client_msg_id INTEGER NOT NULL,
+
+-- The content of the comment
+comment_text TEXT NOT NULL,
+
+UNIQUE(photo_id, author_id, client_msg_id)
+);
+
 CREATE TABLE photo_glance(
 -- The photo that this glances
 photo_id TEXT REFERENCES photo(photo_id),
@@ -118,3 +136,6 @@ CREATE INDEX album_member_index ON album_member(album_id);
 -- correct order, and also to efficiently retrieve the latest n photos
 
 CREATE INDEX photo_num_index ON photo(num);
+
+CREATE INDEX photo_comment_index ON photo_comment(photo_id);
+CREATE INDEX photo_comment_date_created_index ON photo_comment(date_created);

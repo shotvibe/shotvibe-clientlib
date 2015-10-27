@@ -439,7 +439,19 @@ public class ShotVibeAPI {
                 glances.add(new AlbumPhotoGlance(glanceAuthor, emoticonName));
             }
 
-            result.add(new AlbumPhoto(new AlbumServerPhoto(photo_id, photo_url, author, photo_date_created, glances)));
+            JSONArray commentsArray = photo_obj.getJSONArray("comments");
+            ArrayList<AlbumPhotoComment> comments = new ArrayList<AlbumPhotoComment>();
+            for (int j = 0; j < commentsArray.length(); ++j) {
+                JSONObject commentObj = commentsArray.getJSONObject(j);
+                long clientMsgId = commentObj.getLong("client_msg_id");
+                AlbumUser commentAuthor = parseAlbumUser(commentObj.getJSONObject("author"));
+                DateTime dateCreated = parseDate(commentObj, "date_created");
+                String commentText = commentObj.getString("comment");
+
+                comments.add(new AlbumPhotoComment(commentAuthor, clientMsgId, dateCreated, commentText));
+            }
+
+            result.add(new AlbumPhoto(new AlbumServerPhoto(photo_id, photo_url, author, photo_date_created, comments, glances)));
         }
         return result;
     }
@@ -898,6 +910,26 @@ public class ShotVibeAPI {
                 requestBody.put("photos", photosArray);
 
                 HTTPResponse response = sendRequest("POST", "/photos/delete/", requestBody);
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+
+                return new NetworkRequestResult<Object>(null, response);
+            }
+        });
+    }
+
+    public void postPhotoComment(final String photoId, final String commentText, final long clientMsgId) throws APIException {
+        runAndLogNetworkRequestAction(new NetworkRequestAction<Object>() {
+            @Override
+            public NetworkRequestResult<Object> runAction() throws APIException, HTTPException {
+                JSONObject requestBody = new JSONObject();
+                requestBody.put("comment", commentText);
+
+                long authorId = mAuthData.getUserId();
+
+                HTTPResponse response = sendRequest("PUT", "/photos/" + photoId + "/comments/" + authorId + "/" + clientMsgId + "/", requestBody);
 
                 if (response.isError()) {
                     throw APIException.ErrorStatusCodeException(response);
