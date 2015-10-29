@@ -943,6 +943,26 @@ public class ShotVibeAPI {
         });
     }
 
+    public void setPhotoMyGlanceScoreDelta(final String photoId, final int myGlanceScoreDelta) throws APIException {
+        runAndLogNetworkRequestAction(new NetworkRequestAction<Object>() {
+            @Override
+            public NetworkRequestResult<Object> runAction() throws APIException, HTTPException {
+                JSONObject requestBody = new JSONObject();
+                requestBody.put("score_delta", myGlanceScoreDelta);
+
+                long authorId = mAuthData.getUserId();
+
+                HTTPResponse response = sendRequest("PUT", "/photos/" + photoId + "/glance_scores/" + authorId + "/", requestBody);
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+
+                return new NetworkRequestResult<Object>(null, response);
+            }
+        });
+    }
+
     public ArrayList<PhoneContactServerResult> queryPhoneNumbers(final ArrayList<PhoneContact> phoneContacts, final String defaultCountry) throws APIException {
         return runAndLogNetworkRequestAction(new NetworkRequestAction<ArrayList<PhoneContactServerResult>>() {
             @Override
