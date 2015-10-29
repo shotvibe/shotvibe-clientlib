@@ -160,7 +160,9 @@ public final class ShotVibeDB {
                 // Latest Photos does not contain comments
                 ArrayList<AlbumPhotoComment> emptyComments = new ArrayList<AlbumPhotoComment>();
 
-                results.add(new AlbumPhoto(new AlbumServerPhoto(photoId, photoUrl, photoAuthor, photoDateAdded, emptyComments, dummy)));
+                int globalGlanceScore = 0;
+                int myGlanceScoreDelta = 0;
+                results.add(new AlbumPhoto(new AlbumServerPhoto(photoId, photoUrl, photoAuthor, photoDateAdded, emptyComments, globalGlanceScore, myGlanceScoreDelta, dummy)));
             }
             return results;
         } finally {
@@ -329,7 +331,9 @@ public final class ShotVibeDB {
 
                     ArrayList<AlbumPhotoComment> photoComments = readPhotoComments(mConn, photoId);
 
-                    albumPhotos.add(new AlbumPhoto(new AlbumServerPhoto(photoId, photoUrl, photoAuthor, photoDateAdded, photoComments, photoGlances)));
+                    int globalGlanceScore = 0;
+                    int myGlanceScoreDelta = 0;
+                    albumPhotos.add(new AlbumPhoto(new AlbumServerPhoto(photoId, photoUrl, photoAuthor, photoDateAdded, photoComments, globalGlanceScore, myGlanceScoreDelta, photoGlances)));
                 }
             } finally {
                 cursor.close();
