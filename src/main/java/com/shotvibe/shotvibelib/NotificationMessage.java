@@ -191,15 +191,19 @@ public abstract class NotificationMessage {
             String photoId = msg.getString("photo_id");
             String albumName = msg.getString("album_name");
             String commentAuthorNickname = msg.getString("comment_author_nickname");
+            String commentAuthorAvatarUrl = msg.getString("comment_author_avatar_url");
+            String commentText = msg.getString("comment_text");
 
-            return new PhotoComment(albumId, photoId, albumName, commentAuthorNickname);
+            return new PhotoComment(albumId, photoId, albumName, commentAuthorNickname, commentAuthorAvatarUrl, commentText);
         }
 
-        private PhotoComment(long albumId, String photoId, String albumName, String commentAuthorNickname) {
+        private PhotoComment(long albumId, String photoId, String albumName, String commentAuthorNickname, String commentAuthorAvatarUrl, String commentText) {
             mAlbumId = albumId;
             mPhotoId = photoId;
             mAlbumName = albumName;
             mCommentAuthorNickname = commentAuthorNickname;
+            mCommentAuthorAvatarUrl = commentAuthorAvatarUrl;
+            mCommentText = commentText;
         }
 
         public long getAlbumId() {
@@ -218,10 +222,20 @@ public abstract class NotificationMessage {
             return mCommentAuthorNickname;
         }
 
+        public String getCommentAuthorAvatarUrl() {
+            return mCommentAuthorAvatarUrl;
+        }
+
+        public String getCommentText() {
+            return mCommentText;
+        }
+
         private final long mAlbumId;
         private final String mPhotoId;
         private final String mAlbumName;
         private final String mCommentAuthorNickname;
+        private final String mCommentAuthorAvatarUrl;
+        private final String mCommentText;
 
         @Override
         public void handle(NotificationHandler handler) {
