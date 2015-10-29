@@ -429,6 +429,9 @@ public class ShotVibeAPI {
 
             AlbumUser author = parseAlbumUser(photo_obj.getJSONObject("author"));
 
+            int globalGlanceScore = photo_obj.getInt("global_glance_score");
+            int myGlanceScoreDelta = photo_obj.getInt("my_glance_score_delta");
+
             JSONArray glancesArray = photo_obj.getJSONArray("glances");
             ArrayList<AlbumPhotoGlance> glances = new ArrayList<AlbumPhotoGlance>();
             for (int j = 0; j < glancesArray.length(); ++j) {
@@ -451,7 +454,7 @@ public class ShotVibeAPI {
                 comments.add(new AlbumPhotoComment(commentAuthor, clientMsgId, dateCreated, commentText));
             }
 
-            result.add(new AlbumPhoto(new AlbumServerPhoto(photo_id, photo_url, author, photo_date_created, comments, glances)));
+            result.add(new AlbumPhoto(new AlbumServerPhoto(photo_id, photo_url, author, photo_date_created, comments, globalGlanceScore, myGlanceScoreDelta, glances)));
         }
         return result;
     }

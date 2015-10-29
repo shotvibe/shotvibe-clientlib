@@ -1,7 +1,7 @@
 package com.shotvibe.shotvibelib;
 
 public class AlbumServerPhoto {
-    public AlbumServerPhoto(String id, String url, AlbumUser author, DateTime dateAdded, ArrayList<AlbumPhotoComment> comments, ArrayList<AlbumPhotoGlance> glances) {
+    public AlbumServerPhoto(String id, String url, AlbumUser author, DateTime dateAdded, ArrayList<AlbumPhotoComment> comments, int globalGlanceScore, int myGlanceScoreDelta, ArrayList<AlbumPhotoGlance> glances) {
         if (id == null) {
             throw new IllegalArgumentException("id cannot be null");
         }
@@ -26,6 +26,8 @@ public class AlbumServerPhoto {
         mAuthor = author;
         mDateAdded = dateAdded;
         mComments = comments;
+        mGlobalGlanceScore = globalGlanceScore;
+        mMyGlanceScoreDelta = myGlanceScoreDelta;
         mGlances = glances;
 
         mUploadingOriginal = false;
@@ -49,6 +51,14 @@ public class AlbumServerPhoto {
 
     public ArrayList<AlbumPhotoComment> getComments() {
         return mComments;
+    }
+
+    public int getGlobalGlanceScore() {
+        return mGlobalGlanceScore;
+    }
+
+    public int getMyGlanceScoreDelta() {
+        return mMyGlanceScoreDelta;
     }
 
     public ArrayList<AlbumPhotoGlance> getGlances() {
@@ -84,6 +94,10 @@ public class AlbumServerPhoto {
     private final DateTime mDateAdded;
 
     private ArrayList<AlbumPhotoComment> mComments;
+
+    private final int mGlobalGlanceScore;
+
+    private final int mMyGlanceScoreDelta;
 
     private ArrayList<AlbumPhotoGlance> mGlances;
 
