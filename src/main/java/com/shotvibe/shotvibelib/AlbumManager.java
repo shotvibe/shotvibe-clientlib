@@ -70,6 +70,26 @@ public class AlbumManager implements UploadManager.Listener {
         }
     }
 
+    public ArrayList<AlbumContents> getCachedAlbumContents() {
+        if (!ThreadUtil.isMainThread()) {
+            throw new IllegalStateException("Must be called from the Main Thread");
+        }
+
+        try {
+            ArrayList<AlbumContents> result = new ArrayList<AlbumContents>();
+            ArrayList<AlbumSummary> albumSummaries = mShotVibeDB.getAlbumList();
+            for (AlbumSummary a : albumSummaries) {
+                AlbumContents albumContents = mShotVibeDB.getAlbumContents(a.getId());
+                if (albumContents != null) {
+                    result.add(albumContents);
+                }
+            }
+            return result;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public ArrayList<AlbumSummary> addAlbumListListener(final AlbumListListener listener) {
         if (!ThreadUtil.isMainThread()) {
             throw new IllegalStateException("Must be called from the Main Thread");
