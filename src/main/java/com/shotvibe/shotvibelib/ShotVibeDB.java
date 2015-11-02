@@ -5,7 +5,7 @@ import java.util.Map;
 
 public final class ShotVibeDB {
     private static final String DATABASE_FILENAME = "shotvibe_main.db";
-    private static final int DATABASE_VERSION = 9;
+    private static final int DATABASE_VERSION = 10;
 
     public static class Recipe extends SQLDatabaseRecipe<ShotVibeDB> {
         public Recipe() {
@@ -133,7 +133,7 @@ public final class ShotVibeDB {
 
     private ArrayList<AlbumPhoto> getLatestPhotos(long albumId, int numPhotos) throws SQLException {
         SQLCursor cursor = mConn.query(""
-                + "SELECT photo.photo_id, photo.url, photo.created, user.user_id, user.nickname, user.avatar_url"
+                + "SELECT photo.photo_id, photo.url, photo.created, photo.global_glance_score, photo.my_glance_score_delta, user.user_id, user.nickname, user.avatar_url"
                 + " FROM photo"
                 + " LEFT OUTER JOIN user"
                 + " ON photo.author_id = user.user_id"
@@ -149,9 +149,11 @@ public final class ShotVibeDB {
                 String photoId = cursor.getString(0);
                 String photoUrl = cursor.getString(1);
                 DateTime photoDateAdded = cursorGetDateTime(cursor, 2);
-                long photoAuthorUserId = cursor.getLong(3);
-                String photoAuthorNickname = cursor.getString(4);
-                String photoAuthorAvatarUrl = cursor.getString(5);
+                int globalGlanceScore = cursor.getInt(3);
+                int myGlanceScoreDelta = cursor.getInt(4);
+                long photoAuthorUserId = cursor.getLong(5);
+                String photoAuthorNickname = cursor.getString(6);
+                String photoAuthorAvatarUrl = cursor.getString(7);
                 AlbumUser photoAuthor = new AlbumUser(photoAuthorUserId, photoAuthorNickname, photoAuthorAvatarUrl);
 
                 // TODO Load real values from DB
@@ -160,8 +162,6 @@ public final class ShotVibeDB {
                 // Latest Photos does not contain comments
                 ArrayList<AlbumPhotoComment> emptyComments = new ArrayList<AlbumPhotoComment>();
 
-                int globalGlanceScore = 0;
-                int myGlanceScoreDelta = 0;
                 results.add(new AlbumPhoto(new AlbumServerPhoto(photoId, photoUrl, photoAuthor, photoDateAdded, emptyComments, globalGlanceScore, myGlanceScoreDelta, dummy)));
             }
             return results;
@@ -286,7 +286,7 @@ public final class ShotVibeDB {
             }
 
             cursor = mConn.query(""
-                    + "SELECT photo.photo_id, photo.url, photo.created, user.user_id, user.nickname, user.avatar_url"
+                    + "SELECT photo.photo_id, photo.url, photo.created, photo.global_glance_score, photo.my_glance_score_delta, user.user_id, user.nickname, user.avatar_url"
                     + " FROM photo"
                     + " LEFT OUTER JOIN user"
                     + " ON photo.author_id = user.user_id"
@@ -301,9 +301,11 @@ public final class ShotVibeDB {
                     String photoId = cursor.getString(0);
                     String photoUrl = cursor.getString(1);
                     DateTime photoDateAdded = cursorGetDateTime(cursor, 2);
-                    long photoAuthorUserId = cursor.getLong(3);
-                    String photoAuthorNickname = cursor.getString(4);
-                    String photoAuthorAvatarUrl = cursor.getString(5);
+                    int globalGlanceScore = cursor.getInt(3);
+                    int myGlanceScoreDelta = cursor.getInt(4);
+                    long photoAuthorUserId = cursor.getLong(5);
+                    String photoAuthorNickname = cursor.getString(6);
+                    String photoAuthorAvatarUrl = cursor.getString(7);
                     AlbumUser photoAuthor = new AlbumUser(photoAuthorUserId, photoAuthorNickname, photoAuthorAvatarUrl);
 
                     ArrayList<AlbumPhotoGlance> photoGlances = new ArrayList<AlbumPhotoGlance>();
@@ -331,8 +333,6 @@ public final class ShotVibeDB {
 
                     ArrayList<AlbumPhotoComment> photoComments = readPhotoComments(mConn, photoId);
 
-                    int globalGlanceScore = 0;
-                    int myGlanceScoreDelta = 0;
                     albumPhotos.add(new AlbumPhoto(new AlbumServerPhoto(photoId, photoUrl, photoAuthor, photoDateAdded, photoComments, globalGlanceScore, myGlanceScoreDelta, photoGlances)));
                 }
             } finally {
@@ -429,15 +429,17 @@ public final class ShotVibeDB {
             photoIds.add(photo.getId());
 
             conn.update(""
-                            + "INSERT OR REPLACE INTO photo (photo_album, num, photo_id, url, author_id, created)"
-                            + " VALUES (?, ?, ?, ?, ?, ?)",
+                            + "INSERT OR REPLACE INTO photo (photo_album, num, photo_id, url, author_id, created, global_glance_score, my_glance_score_delta)"
+                            + " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                     SQLValues.create()
                             .add(albumId)
                             .add(num++)
                             .add(photo.getId())
                             .add(photo.getUrl())
                             .add(photo.getAuthor().getMemberId())
-                            .add(dateTimeToSQLValue(photo.getDateAdded())));
+                            .add(dateTimeToSQLValue(photo.getDateAdded()))
+                            .add(photo.getGlobalGlanceScore())
+                            .add(photo.getMyGlanceScoreDelta()));
 
             AlbumUser user = photo.getAuthor();
             allUsers.put(user.getMemberId(), user);
