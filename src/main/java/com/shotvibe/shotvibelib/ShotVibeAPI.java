@@ -731,6 +731,47 @@ public class ShotVibeAPI {
         });
     }
 
+    public AlbumContents albumCopyPhotos(final long albumId, final Iterable<String> photoIds) throws APIException {
+        return runAndLogNetworkRequestAction(new NetworkRequestAction<AlbumContents>() {
+            @Override
+            public NetworkRequestResult<AlbumContents> runAction() throws APIException, HTTPException {
+                JSONObject data = new JSONObject();
+
+                JSONArray photosArray = new JSONArray();
+                for (String photoId : photoIds) {
+                    JSONObject photoObj = new JSONObject();
+                    if (photoId == null) {
+                        throw new IllegalArgumentException("photoIds must not contain any null values");
+                    }
+                    photoObj.put("photo_id", photoId);
+                    photosArray.put(photoObj);
+                }
+
+                data.put("copy_photos", photosArray);
+
+                HTTPResponse response = sendRequest("POST", "/albums/" + albumId + "/", data);
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+
+                String etagValue = response.getHeaderValue("etag");
+                if (etagValue != null) {
+                    etagValue = ParseETagValue(etagValue);
+                }
+
+                try {
+                    JSONObject json = response.bodyAsJSONObject();
+
+                    AlbumContents result = parseAlbumContents(json, etagValue);
+                    return new NetworkRequestResult<AlbumContents>(result, response);
+                } catch (JSONException e) {
+                    throw APIException.FromJSONException(response, e);
+                }
+            }
+        });
+    }
+
     public static class MemberAddRequest {
         public MemberAddRequest(long userId) {
             mUserId = userId;
