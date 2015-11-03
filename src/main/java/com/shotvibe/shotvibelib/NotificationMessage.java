@@ -8,6 +8,7 @@ public abstract class NotificationMessage {
         void Handle(NotificationMessage.PhotosAdded msg);
         void Handle(NotificationMessage.AddedToAlbum msg);
         void Handle(NotificationMessage.PhotoComment msg);
+        void Handle(NotificationMessage.PhotoGlanceScoreDelta msg);
         void Handle(NotificationMessage.PhotoGlance msg);
     }
 
@@ -39,6 +40,8 @@ public abstract class NotificationMessage {
                 return AddedToAlbum.parse(msg);
             } else if (type.equals("photo_comment")) {
                 return PhotoComment.parse(msg);
+            } else if (type.equals("photo_glance_score_delta")) {
+                return PhotoGlanceScoreDelta.parse(msg);
             } else if (type.equals("photo_glance")) {
                 return PhotoGlance.parse(msg);
             } else {
@@ -236,6 +239,64 @@ public abstract class NotificationMessage {
         private final String mCommentAuthorNickname;
         private final String mCommentAuthorAvatarUrl;
         private final String mCommentText;
+
+        @Override
+        public void handle(NotificationHandler handler) {
+            handler.Handle(this);
+        }
+    }
+
+    public static final class PhotoGlanceScoreDelta extends NotificationMessage {
+        public static PhotoGlanceScoreDelta parse(JSONObject msg) throws ParseException, JSONException {
+            long albumId = msg.getLong("album_id");
+            String photoId = msg.getString("photo_id");
+            String albumName = msg.getString("album_name");
+            String glanceAuthorNickname = msg.getString("glance_author_nickname");
+            String glanceAuthorAvatarUrl = msg.getString("glance_author_avatar_url");
+            int scoreDelta = msg.getInt("score_delta");
+
+            return new PhotoGlanceScoreDelta(albumId, photoId, albumName, glanceAuthorNickname, glanceAuthorAvatarUrl, scoreDelta);
+        }
+
+        private PhotoGlanceScoreDelta(long albumId, String photoId, String albumName, String glanceAuthorNickname, String glanceAuthorAvatarUrl, int scoreDelta) {
+            mAlbumId = albumId;
+            mPhotoId = photoId;
+            mAlbumName = albumName;
+            mGlanceAuthorNickname = glanceAuthorNickname;
+            mGlanceAuthorAvatarUrl = glanceAuthorAvatarUrl;
+            mScoreDelta = scoreDelta;
+        }
+
+        public long getAlbumId() {
+            return mAlbumId;
+        }
+
+        public String getPhotoId() {
+            return mPhotoId;
+        }
+
+        public String getAlbumName() {
+            return mAlbumName;
+        }
+
+        public String getGlanceAuthorNickname() {
+            return mGlanceAuthorNickname;
+        }
+
+        public String getGlanceAuthorAvatarUrl() {
+            return mGlanceAuthorAvatarUrl;
+        }
+
+        public int getScoreDelta() {
+            return mScoreDelta;
+        }
+
+        private final long mAlbumId;
+        private final String mPhotoId;
+        private final String mAlbumName;
+        private final String mGlanceAuthorNickname;
+        private final String mGlanceAuthorAvatarUrl;
+        private final int mScoreDelta;
 
         @Override
         public void handle(NotificationHandler handler) {
