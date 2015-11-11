@@ -196,6 +196,9 @@ public class UploadManagerImpl implements UploadManager {
         for (AlbumUploadingPhoto addedPhoto : photos) {
             String thumbFile = addedPhoto.getTmpFile() + THUMB_FILE_SUFFIX;
             mPhotoDownloadManager.takePhotoThumbnailFile(thumbFile, addedPhoto.getPhotoId());
+
+            String fullFile = addedPhoto.getTmpFile() + RESIZED_FILE_SUFFIX;
+            mPhotoDownloadManager.takePhotoFileFull(fullFile, addedPhoto.getPhotoId());
         }
 
         addToAlbumBackgroundTask.reportFinished();

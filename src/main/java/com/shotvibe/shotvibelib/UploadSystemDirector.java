@@ -558,7 +558,7 @@ public class UploadSystemDirector {
                 for (UploadingPhoto photo : mUploadingPhotos) {
                     if (tmpFiles.contains(photo.getTmpFilename())) {
                         // Delete the RESIZED file, it is not longer needed
-                        mFileSystemManager.deleteFile(photo.getTmpFilename() + UploadManager.RESIZED_FILE_SUFFIX);
+                        //mFileSystemManager.deleteFile(photo.getTmpFilename() + UploadManager.RESIZED_FILE_SUFFIX);
                         // Note: The THUMB file is not removed, UploadManagerImpl handles it
 
                         if (photo.getUploadStrategy() == UploadingPhoto.UploadStrategy.UploadTwoStage) {
