@@ -4,4 +4,5 @@ public interface PhotoDownloadManager {
     void queuePhotoForDownload(String photoId, String photoUrl, boolean thumbnail, boolean highPriority);
 
     void takePhotoThumbnailFile(String fileName, String photoId);
+    void takePhotoFileFull(String fileName, String photoId);
 }
