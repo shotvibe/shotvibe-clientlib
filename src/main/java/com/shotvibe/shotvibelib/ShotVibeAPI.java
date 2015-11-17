@@ -375,6 +375,29 @@ public class ShotVibeAPI {
         });
     }
 
+    public int getUserGlanceScore(final long userId) throws APIException {
+        return runAndLogNetworkRequestAction(new NetworkRequestAction<Integer>() {
+            @Override
+            public NetworkRequestResult<Integer> runAction() throws APIException, HTTPException {
+                HTTPResponse response = sendRequest("GET", "/users/" + userId + "/glance_score/");
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+
+                try {
+                    JSONObject responseObj = response.bodyAsJSONObject();
+
+                    int glanceScore = responseObj.getInt("user_glance_score");
+
+                    return new NetworkRequestResult<Integer>(glanceScore, response);
+                } catch (JSONException e) {
+                    throw APIException.FromJSONException(response, e);
+                }
+            }
+        });
+    }
+
     public void setUserNickname(final long userId, final String nickname) throws APIException {
         runAndLogNetworkRequestAction(new NetworkRequestAction<Void>() {
             @Override
