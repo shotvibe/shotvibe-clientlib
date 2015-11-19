@@ -12,13 +12,14 @@ public class AlbumMember {
      * @param user
      * @param inviteStatus May be null if status is unknown
      */
-    public AlbumMember(AlbumUser user, boolean albumAdmin, InviteStatus inviteStatus) {
+    public AlbumMember(AlbumUser user, boolean albumAdmin, long addedByUserId, InviteStatus inviteStatus) {
         if (user == null) {
             throw new IllegalArgumentException("user cannot be null");
         }
 
         mUser = user;
         mAlbumAdmin = albumAdmin;
+        mAddedByUserId = addedByUserId;
         mInviteStatus = inviteStatus;
     }
 
@@ -28,6 +29,10 @@ public class AlbumMember {
 
     public boolean getAlbumAdmin() {
         return mAlbumAdmin;
+    }
+
+    public long getAddedByUserId() {
+        return mAddedByUserId;
     }
 
     /**
@@ -40,5 +45,6 @@ public class AlbumMember {
 
     private AlbumUser mUser;
     private final boolean mAlbumAdmin;
+    private final long mAddedByUserId;
     private InviteStatus mInviteStatus;
 }

@@ -97,6 +97,9 @@ user_id INTEGER REFERENCES user,
 -- The album that this user is a member of
 album_id INTEGER REFERENCES album,
 
+-- The user that added this user to this album
+added_by_user_id INTEGER REFERENCES user,
+
 UNIQUE(user_id, album_id)
 );
 
