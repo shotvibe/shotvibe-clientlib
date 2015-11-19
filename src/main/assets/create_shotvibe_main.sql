@@ -97,6 +97,9 @@ user_id INTEGER REFERENCES user,
 -- The album that this user is a member of
 album_id INTEGER REFERENCES album,
 
+-- Is the member an admin of this album
+album_admin BOOLEAN NOT NULL,
+
 -- The user that added this user to this album
 added_by_user_id INTEGER REFERENCES user,
 

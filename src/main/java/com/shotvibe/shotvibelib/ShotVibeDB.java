@@ -5,7 +5,7 @@ import java.util.Map;
 
 public final class ShotVibeDB {
     private static final String DATABASE_FILENAME = "shotvibe_main.db";
-    private static final int DATABASE_VERSION = 8;
+    private static final int DATABASE_VERSION = 9;
 
     public static class Recipe extends SQLDatabaseRecipe<ShotVibeDB> {
         public Recipe() {
@@ -340,7 +340,7 @@ public final class ShotVibeDB {
             }
 
             cursor = mConn.query(""
-                    + "SELECT album_member.user_id, user.nickname, user.avatar_url, album_member.added_by_user_id"
+                    + "SELECT album_member.user_id, user.nickname, user.avatar_url, album_member.album_admin, album_member.added_by_user_id"
                     + " FROM album_member"
                     + " LEFT OUTER JOIN user"
                     + " ON album_member.user_id = user.user_id"
@@ -355,9 +355,10 @@ public final class ShotVibeDB {
                     long memberId = cursor.getLong(0);
                     String memberNickname = cursor.getString(1);
                     String memberAvatarUrl = cursor.getString(2);
-                    long addedByUserId = cursor.getLong(3);
+                    boolean albumAdmin = cursor.getInt(3) != 0;
+                    long addedByUserId = cursor.getLong(4);
                     AlbumUser user = new AlbumUser(memberId, memberNickname, memberAvatarUrl);
-                    albumMembers.add(new AlbumMember(user, false, addedByUserId, null));
+                    albumMembers.add(new AlbumMember(user, albumAdmin, addedByUserId, null));
                 }
             } finally {
                 cursor.close();
@@ -575,11 +576,12 @@ public final class ShotVibeDB {
             memberIds.add(user.getMemberId());
 
             conn.update(""
-                            + "INSERT OR REPLACE INTO album_member (album_id, user_id, added_by_user_id)"
-                            + " VALUES (?, ?, ?)",
+                            + "INSERT OR REPLACE INTO album_member (album_id, user_id, album_admin, added_by_user_id)"
+                            + " VALUES (?, ?, ?, ?)",
                     SQLValues.create()
                             .add(albumId)
                             .add(user.getMemberId())
+                            .add(member.getAlbumAdmin() ? 1 : 0)
                             .add(member.getAddedByUserId()));
 
             allUsers.put(user.getMemberId(), user);
