@@ -356,7 +356,7 @@ public final class ShotVibeDB {
                     String memberNickname = cursor.getString(1);
                     String memberAvatarUrl = cursor.getString(2);
                     AlbumUser user = new AlbumUser(memberId, memberNickname, memberAvatarUrl);
-                    albumMembers.add(new AlbumMember(user, null));
+                    albumMembers.add(new AlbumMember(user, false, null));
                 }
             } finally {
                 cursor.close();

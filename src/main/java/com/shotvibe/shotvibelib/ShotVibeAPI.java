@@ -601,6 +601,7 @@ public class ShotVibeAPI {
             long member_id = member_obj.getLong("id");
             String member_nickname = member_obj.getString("nickname");
             String member_avatar_url = member_obj.getString("avatar_url");
+            boolean memberAlbumAdmin = member_obj.getBoolean("album_admin");
             String inviteStatusStr = member_obj.getString("invite_status");
             AlbumMember.InviteStatus inviteStatus;
             if (inviteStatusStr.equals("joined")) {
@@ -614,7 +615,7 @@ public class ShotVibeAPI {
             }
 
             AlbumUser user = new AlbumUser(member_id, member_nickname, member_avatar_url);
-            members.add(new AlbumMember(user, inviteStatus));
+            members.add(new AlbumMember(user, memberAlbumAdmin, inviteStatus));
         }
 
         return new AlbumContents(id, etag, name, creator, date_created, date_updated, num_new_photos, last_access, photos, members);
