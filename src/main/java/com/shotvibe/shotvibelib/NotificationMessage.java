@@ -111,15 +111,17 @@ public abstract class NotificationMessage {
         public static PhotosAdded parse(JSONObject msg) throws ParseException, JSONException {
             long album_id = msg.getLong("album_id");
             String author_name = msg.getString("author");
+            String authorAvatarUrl = msg.getString("author_avatar_url");
             String album_name = msg.getString("album_name");
             int num_photos = msg.getInt("num_photos");
 
-            return new PhotosAdded(album_id, author_name, album_name, num_photos);
+            return new PhotosAdded(album_id, author_name, authorAvatarUrl, album_name, num_photos);
         }
 
-        private PhotosAdded(long albumId, String authorName, String albumName, int numPhotos) {
+        private PhotosAdded(long albumId, String authorName, String authorAvatarUrl, String albumName, int numPhotos) {
             mAlbumId = albumId;
             mAuthorName = authorName;
+            mAuthorAvatarUrl = authorAvatarUrl;
             mAlbumName = albumName;
             mNumPhotos = numPhotos;
         }
@@ -132,6 +134,10 @@ public abstract class NotificationMessage {
             return mAuthorName;
         }
 
+        public String getAuthorAvatarUrl() {
+            return mAuthorAvatarUrl;
+        }
+
         public String getAlbumName() {
             return mAlbumName;
         }
@@ -142,6 +148,7 @@ public abstract class NotificationMessage {
 
         private final long mAlbumId;
         private final String mAuthorName;
+        private final String mAuthorAvatarUrl;
         private final String mAlbumName;
         private final int mNumPhotos;
 
