@@ -162,14 +162,16 @@ public abstract class NotificationMessage {
         public static AddedToAlbum parse(JSONObject msg) throws ParseException, JSONException {
             long album_id = msg.getLong("album_id");
             String adder_name = msg.getString("adder");
+            String adderAvatarUrl = msg.getString("adder_avatar_url");
             String album_name = msg.getString("album_name");
 
-            return new AddedToAlbum(album_id, adder_name, album_name);
+            return new AddedToAlbum(album_id, adder_name, adderAvatarUrl, album_name);
         }
 
-        private AddedToAlbum(long albumId, String adderName, String albumName) {
+        private AddedToAlbum(long albumId, String adderName, String adderAvatarUrl, String albumName) {
             mAlbumId = albumId;
             mAdderName = adderName;
+            mAdderAvatarUrl = adderAvatarUrl;
             mAlbumName = albumName;
         }
 
@@ -181,12 +183,17 @@ public abstract class NotificationMessage {
             return mAdderName;
         }
 
+        public String getAdderAvatarUrl() {
+            return mAdderAvatarUrl;
+        }
+
         public String getAlbumName() {
             return mAlbumName;
         }
 
         private final long mAlbumId;
         private final String mAdderName;
+        private final String mAdderAvatarUrl;
         private final String mAlbumName;
 
         @Override
