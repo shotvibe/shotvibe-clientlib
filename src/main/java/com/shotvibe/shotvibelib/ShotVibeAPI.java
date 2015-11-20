@@ -434,6 +434,56 @@ public class ShotVibeAPI {
         });
     }
 
+    public static class AlbumMemberPhoneNumber {
+        public AlbumMemberPhoneNumber(AlbumUser user, String phoneNumber) {
+            if (user == null) {
+                throw new IllegalArgumentException("user cannot be null");
+            }
+            if (phoneNumber == null) {
+                throw new IllegalArgumentException("phoneNumber cannot be null");
+            }
+
+            mUser = user;
+            mPhoneNumber = phoneNumber;
+        }
+
+        public AlbumUser getUser() {
+            return mUser;
+        }
+
+        public String getPhoneNumber() {
+            return mPhoneNumber;
+        }
+
+        private final AlbumUser mUser;
+        private final String mPhoneNumber;
+    }
+
+    public AlbumMemberPhoneNumber getAlbumMemberPhoneNumber(final long albumId, final long userId) throws APIException {
+        return runAndLogNetworkRequestAction(new NetworkRequestAction<AlbumMemberPhoneNumber>() {
+            @Override
+            public NetworkRequestResult<AlbumMemberPhoneNumber> runAction() throws APIException, HTTPException {
+                HTTPResponse response = sendRequest("GET", "/albums/" + albumId + "/members/" + userId + "/phone_number/");
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+
+                try {
+                    JSONObject responseObj = response.bodyAsJSONObject();
+
+                    AlbumUser user = parseAlbumUser(responseObj.getJSONObject("user"));
+                    String phoneNumber = responseObj.getString("phone_number");
+
+                    AlbumMemberPhoneNumber result = new AlbumMemberPhoneNumber(user, phoneNumber);
+                    return new NetworkRequestResult<AlbumMemberPhoneNumber>(result, response);
+                } catch (JSONException e) {
+                    throw APIException.FromJSONException(response, e);
+                }
+            }
+        });
+    }
+
     private static AlbumUser parseAlbumUser(JSONObject userObj) throws JSONException {
         long id = userObj.getLong("id");
         String nickname = userObj.getString("nickname");
