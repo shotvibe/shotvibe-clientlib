@@ -672,6 +672,34 @@ public class ShotVibeAPI {
         return new AlbumContents(id, etag, name, creator, date_created, date_updated, num_new_photos, last_access, photos, members);
     }
 
+    public long getPublicAlbumId() throws APIException {
+        return runAndLogNetworkRequestAction(new NetworkRequestAction<Long>() {
+            @Override
+            public NetworkRequestResult<Long> runAction() throws APIException, HTTPException {
+                HTTPResponse response = sendRequest("GET", "/albums/public/");
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+
+                try {
+                    JSONObject responseObj = response.bodyAsJSONObject();
+
+                    long albumId = responseObj.getLong("album_id");
+
+                    return new NetworkRequestResult<Long>(albumId, response);
+                } catch (JSONException e) {
+                    throw APIException.FromJSONException(response, e);
+                }
+            }
+        });
+    }
+
+    public AlbumContents getPublicAlbumContents() throws APIException {
+        long albumId = getPublicAlbumId();
+        return getAlbumContents(albumId);
+    }
+
     public AlbumContents createNewBlankAlbum(final String albumName) throws APIException {
         return runAndLogNetworkRequestAction(new NetworkRequestAction<AlbumContents>() {
             @Override
