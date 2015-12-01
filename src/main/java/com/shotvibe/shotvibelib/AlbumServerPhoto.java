@@ -1,9 +1,26 @@
 package com.shotvibe.shotvibelib;
 
 public class AlbumServerPhoto {
-    public AlbumServerPhoto(String id, String url, AlbumUser author, DateTime dateAdded, ArrayList<AlbumPhotoComment> comments, int globalGlanceScore, int myGlanceScoreDelta, ArrayList<AlbumPhotoGlance> glances) {
+    public static enum MediaType {
+        PHOTO,
+        VIDEO,
+    }
+
+    public AlbumServerPhoto(String id, MediaType mediaType, AlbumServerVideo video, String url, AlbumUser author, DateTime dateAdded, ArrayList<AlbumPhotoComment> comments, int globalGlanceScore, int myGlanceScoreDelta, ArrayList<AlbumPhotoGlance> glances) {
         if (id == null) {
             throw new IllegalArgumentException("id cannot be null");
+        }
+        if (mediaType == null) {
+            throw new IllegalArgumentException("mediaType cannot be null");
+        }
+        if (mediaType == MediaType.VIDEO) {
+            if (video == null) {
+                throw new IllegalArgumentException("video cannot be null when mediaType is MediaType.VIDEO");
+            }
+        } else {
+            if (video != null) {
+                throw new IllegalArgumentException("video must be null when mediaType is not MediaType.VIDEO");
+            }
         }
         if (url == null) {
             throw new IllegalArgumentException("url cannot be null");
@@ -22,6 +39,8 @@ public class AlbumServerPhoto {
         }
 
         mId = id;
+        mMediaType = mediaType;
+        mVideo = video;
         mUrl = url;
         mAuthor = author;
         mDateAdded = dateAdded;
@@ -35,6 +54,14 @@ public class AlbumServerPhoto {
 
     public String getId() {
         return mId;
+    }
+
+    public MediaType getMediaType() {
+        return mMediaType;
+    }
+
+    public AlbumServerVideo getVideo() {
+        return mVideo;
     }
 
     public String getUrl() {
@@ -86,6 +113,10 @@ public class AlbumServerPhoto {
     }
 
     private final String mId;
+
+    private final MediaType mMediaType;
+
+    private final AlbumServerVideo mVideo;
 
     private final String mUrl;
 
