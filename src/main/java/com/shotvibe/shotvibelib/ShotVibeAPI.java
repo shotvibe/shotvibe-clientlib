@@ -349,6 +349,33 @@ public class ShotVibeAPI {
         });
     }
 
+    public AwsToken getAwsToken() throws APIException {
+        return runAndLogNetworkRequestAction(new NetworkRequestAction<AwsToken>() {
+            @Override
+            public NetworkRequestResult<AwsToken> runAction() throws APIException, HTTPException {
+                HTTPResponse response = sendRequest("POST", "/auth/aws_token/");
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+
+                try {
+                    JSONObject responseObj = response.bodyAsJSONObject();
+
+                    String awsAccessKey = responseObj.getString("aws_access_key");
+                    String awsSecretKey = responseObj.getString("aws_secret_key");
+                    String awsSessionToken = responseObj.getString("aws_session_token");
+                    DateTime expires = parseDate(responseObj, "expires");
+
+                    AwsToken token = new AwsToken(awsAccessKey, awsSecretKey, awsSessionToken, expires);
+                    return new NetworkRequestResult<AwsToken>(token, response);
+                } catch (JSONException e) {
+                    throw APIException.FromJSONException(response, e);
+                }
+            }
+        });
+    }
+
     public AlbumUser getUserProfile(final long userId) throws APIException {
         return runAndLogNetworkRequestAction(new NetworkRequestAction<AlbumUser>() {
             @Override
