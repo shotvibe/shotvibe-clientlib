@@ -163,7 +163,7 @@ public final class ShotVibeDB {
                 int globalGlanceScore = 0;
                 int myGlanceScoreDelta = 0;
 
-                AlbumServerPhoto.MediaType mediaType = AlbumServerPhoto.MediaType.PHOTO;
+                MediaType mediaType = MediaType.PHOTO;
                 AlbumServerVideo video = null;
 
                 results.add(new AlbumPhoto(new AlbumServerPhoto(photoId, mediaType, video, photoUrl, photoAuthor, photoDateAdded, emptyComments, globalGlanceScore, myGlanceScoreDelta, dummy)));
@@ -338,7 +338,7 @@ public final class ShotVibeDB {
                     int globalGlanceScore = 0;
                     int myGlanceScoreDelta = 0;
 
-                    AlbumServerPhoto.MediaType mediaType = AlbumServerPhoto.MediaType.PHOTO;
+                    MediaType mediaType = MediaType.PHOTO;
                     AlbumServerVideo video = null;
 
                     albumPhotos.add(new AlbumPhoto(new AlbumServerPhoto(photoId, mediaType, video, photoUrl, photoAuthor, photoDateAdded, photoComments, globalGlanceScore, myGlanceScoreDelta, photoGlances)));

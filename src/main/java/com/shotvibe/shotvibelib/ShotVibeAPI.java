@@ -526,17 +526,17 @@ public class ShotVibeAPI {
             String photo_id = photo_obj.getString("photo_id");
 
             String mediaTypeStr = photo_obj.getString("media_type");
-            AlbumServerPhoto.MediaType mediaType;
+            MediaType mediaType;
             if (mediaTypeStr == "photo") {
-                mediaType = AlbumServerPhoto.MediaType.PHOTO;
+                mediaType = MediaType.PHOTO;
             } else if (mediaTypeStr == "video") {
-                mediaType = AlbumServerPhoto.MediaType.VIDEO;
+                mediaType = MediaType.VIDEO;
             } else {
                 throw new JSONException("Invalid `media_type` value: " + mediaTypeStr);
             }
 
             AlbumServerVideo video = null;
-            if (mediaType == AlbumServerPhoto.MediaType.VIDEO) {
+            if (mediaType == MediaType.VIDEO) {
                 String statusStr = photo_obj.getString("video_status");
                 AlbumServerVideo.Status status;
                 if (statusStr == "ready") {

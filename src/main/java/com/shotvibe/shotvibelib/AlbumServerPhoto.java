@@ -1,11 +1,6 @@
 package com.shotvibe.shotvibelib;
 
 public class AlbumServerPhoto {
-    public static enum MediaType {
-        PHOTO,
-        VIDEO,
-    }
-
     public AlbumServerPhoto(String id, MediaType mediaType, AlbumServerVideo video, String url, AlbumUser author, DateTime dateAdded, ArrayList<AlbumPhotoComment> comments, int globalGlanceScore, int myGlanceScoreDelta, ArrayList<AlbumPhotoGlance> glances) {
         if (id == null) {
             throw new IllegalArgumentException("id cannot be null");
