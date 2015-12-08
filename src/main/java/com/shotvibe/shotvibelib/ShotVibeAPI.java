@@ -524,6 +524,38 @@ public class ShotVibeAPI {
         for (int i = 0; i < photos_array.length(); ++i) {
             JSONObject photo_obj = photos_array.getJSONObject(i);
             String photo_id = photo_obj.getString("photo_id");
+
+            String mediaTypeStr = photo_obj.getString("media_type");
+            AlbumServerPhoto.MediaType mediaType;
+            if (mediaTypeStr == "photo") {
+                mediaType = AlbumServerPhoto.MediaType.PHOTO;
+            } else if (mediaTypeStr == "video") {
+                mediaType = AlbumServerPhoto.MediaType.VIDEO;
+            } else {
+                throw new JSONException("Invalid `media_type` value: " + mediaTypeStr);
+            }
+
+            AlbumServerVideo video = null;
+            if (mediaType == AlbumServerPhoto.MediaType.VIDEO) {
+                String statusStr = photo_obj.getString("video_status");
+                AlbumServerVideo.Status status;
+                if (statusStr == "ready") {
+                    status = AlbumServerVideo.Status.READY;
+                } else if (statusStr == "processing") {
+                    status = AlbumServerVideo.Status.PROCESSING;
+                } else if (statusStr == "invalid") {
+                    status = AlbumServerVideo.Status.INVALID;
+                } else {
+                    throw new JSONException("Invalid `video_status` value: " + statusStr);
+                }
+
+                String videoUrl = photo_obj.getString("video_url");
+                String videoThumbnailUrl = photo_obj.getString("video_thumbnail_url");
+                int videoDuration = photo_obj.getInt("video_duration");
+
+                video = new AlbumServerVideo(status, videoUrl, videoThumbnailUrl, videoDuration);
+            }
+
             String photo_url = photo_obj.getString("photo_url");
             DateTime photo_date_created = parseDate(photo_obj, "date_created");
 
@@ -554,7 +586,7 @@ public class ShotVibeAPI {
                 comments.add(new AlbumPhotoComment(commentAuthor, clientMsgId, dateCreated, commentText));
             }
 
-            result.add(new AlbumPhoto(new AlbumServerPhoto(photo_id, photo_url, author, photo_date_created, comments, globalGlanceScore, myGlanceScoreDelta, glances)));
+            result.add(new AlbumPhoto(new AlbumServerPhoto(photo_id, mediaType, video, photo_url, author, photo_date_created, comments, globalGlanceScore, myGlanceScoreDelta, glances)));
         }
         return result;
     }

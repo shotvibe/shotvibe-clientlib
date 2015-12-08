@@ -162,7 +162,11 @@ public final class ShotVibeDB {
 
                 int globalGlanceScore = 0;
                 int myGlanceScoreDelta = 0;
-                results.add(new AlbumPhoto(new AlbumServerPhoto(photoId, photoUrl, photoAuthor, photoDateAdded, emptyComments, globalGlanceScore, myGlanceScoreDelta, dummy)));
+
+                AlbumServerPhoto.MediaType mediaType = AlbumServerPhoto.MediaType.PHOTO;
+                AlbumServerVideo video = null;
+
+                results.add(new AlbumPhoto(new AlbumServerPhoto(photoId, mediaType, video, photoUrl, photoAuthor, photoDateAdded, emptyComments, globalGlanceScore, myGlanceScoreDelta, dummy)));
             }
             return results;
         } finally {
@@ -333,7 +337,11 @@ public final class ShotVibeDB {
 
                     int globalGlanceScore = 0;
                     int myGlanceScoreDelta = 0;
-                    albumPhotos.add(new AlbumPhoto(new AlbumServerPhoto(photoId, photoUrl, photoAuthor, photoDateAdded, photoComments, globalGlanceScore, myGlanceScoreDelta, photoGlances)));
+
+                    AlbumServerPhoto.MediaType mediaType = AlbumServerPhoto.MediaType.PHOTO;
+                    AlbumServerVideo video = null;
+
+                    albumPhotos.add(new AlbumPhoto(new AlbumServerPhoto(photoId, mediaType, video, photoUrl, photoAuthor, photoDateAdded, photoComments, globalGlanceScore, myGlanceScoreDelta, photoGlances)));
                 }
             } finally {
                 cursor.close();
