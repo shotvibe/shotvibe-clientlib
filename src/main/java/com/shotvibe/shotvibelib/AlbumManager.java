@@ -3,8 +3,8 @@ package com.shotvibe.shotvibelib;
 import java.util.List;
 import java.util.Map;
 
-public class AlbumManager implements UploadManager.Listener {
-    public AlbumManager(ShotVibeAPI shotVibeAPI, ShotVibeDB shotVibeDB, PhotoDownloadManager photoDownloadManager, UploadManager uploadManager) {
+public class AlbumManager implements UploadManager.Listener, MediaUploader.Listener {
+    public AlbumManager(ShotVibeAPI shotVibeAPI, ShotVibeDB shotVibeDB, PhotoDownloadManager photoDownloadManager, UploadManager uploadManager, MediaUploader mediaUploader) {
         if (shotVibeAPI == null) {
             throw new IllegalArgumentException("shotVibeAPI cannot be null");
         }
@@ -14,12 +14,17 @@ public class AlbumManager implements UploadManager.Listener {
         if (uploadManager == null) {
             throw new IllegalArgumentException("uploadManager cannot be null");
         }
+        if (mediaUploader == null) {
+            throw new IllegalArgumentException("mediaUploader cannot be null");
+        }
         mShotVibeAPI = shotVibeAPI;
         mShotVibeDB = shotVibeDB;
         mPhotoDownloadManager = photoDownloadManager;
         mUploadManager = uploadManager;
+        mMediaUploader = mediaUploader;
 
         mUploadManager.setListener(this);
+        mMediaUploader.setListener(this);
 
         mExecutor = ThreadUtil.createSingleThreadExecutor();
         mAlbumListListeners = new ArrayList<AlbumListListener>();
@@ -510,6 +515,11 @@ public class AlbumManager implements UploadManager.Listener {
         refreshAlbumContents(albumId, false);
     }
 
+    @Override
+    public void onMediaUploadChanged(long albumId) {
+        // TODO ...
+    }
+
     private static <T> boolean listContainsListener(ArrayList<T> list, T listener) {
         for (T l : list) {
             if (l == listener) {
@@ -534,6 +544,7 @@ public class AlbumManager implements UploadManager.Listener {
     private final ShotVibeDB mShotVibeDB;
     private final PhotoDownloadManager mPhotoDownloadManager;
     private final UploadManager mUploadManager;
+    private final MediaUploader mMediaUploader;
     private final ThreadUtil.Executor mExecutor;
 
     // All of the following must only be touched on the main thread:
