@@ -537,7 +537,25 @@ public class AlbumManager implements UploadManager.Listener, MediaUploader.Liste
 
     @Override
     public void onMediaUploadObjectsChanged(long albumId) {
-        // TODO ...
+        List<AlbumContentsListener> listeners = mAlbumContentsListeners.getAlbumContentsListeners(albumId);
+
+        if (listeners.isEmpty()) {
+            return;
+        }
+
+        AlbumContents albumContents;
+        try {
+            albumContents = mShotVibeDB.getAlbumContents(albumId);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        addUploadingPhotosToAlbumContents(albumContents, mUploadManager.getUploadingPhotos(albumId), mUploadManager.getUploadingOriginalPhotoIds());
+        addUploadingMediaToAlbumContents(albumContents, mMediaUploader.getUploadingMedia(albumId));
+
+        for (AlbumContentsListener listener : listeners) {
+            listener.onAlbumContentsNewContent(albumId, albumContents);
+        }
     }
 
     private static <T> boolean listContainsListener(ArrayList<T> list, T listener) {
