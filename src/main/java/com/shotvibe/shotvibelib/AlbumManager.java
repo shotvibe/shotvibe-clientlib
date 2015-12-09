@@ -161,6 +161,7 @@ public class AlbumManager implements UploadManager.Listener, MediaUploader.Liste
         if (cachedAlbumContents != null) {
             // Add the Uploading photos to the end of album:
             addUploadingPhotosToAlbumContents(cachedAlbumContents, mUploadManager.getUploadingPhotos(albumId), mUploadManager.getUploadingOriginalPhotoIds());
+            addUploadingMediaToAlbumContents(cachedAlbumContents, mMediaUploader.getUploadingMedia(albumId));
         }
 
         return cachedAlbumContents;
@@ -329,6 +330,7 @@ public class AlbumManager implements UploadManager.Listener, MediaUploader.Liste
                     List<AlbumContentsListener> listeners = mAlbumContentsListeners.getAlbumContentsListeners(mAlbumId);
                     if (result.albumContents != null && !listeners.isEmpty()) {
                         addUploadingPhotosToAlbumContents(result.albumContents, mUploadManager.getUploadingPhotos(mAlbumId), mUploadManager.getUploadingOriginalPhotoIds());
+                        addUploadingMediaToAlbumContents(result.albumContents, mMediaUploader.getUploadingMedia(mAlbumId));
                     }
 
                     for (AlbumContentsListener listener : listeners) {
@@ -398,6 +400,7 @@ public class AlbumManager implements UploadManager.Listener, MediaUploader.Liste
                 throw new RuntimeException(e);
             }
             addUploadingPhotosToAlbumContents(albumContents, mUploadManager.getUploadingPhotos(albumId), mUploadManager.getUploadingOriginalPhotoIds());
+            addUploadingMediaToAlbumContents(albumContents, mMediaUploader.getUploadingMedia(albumId));
 
             for (AlbumContentsListener listener : listeners) {
                 listener.onAlbumContentsNewContent(albumId, albumContents);
@@ -458,6 +461,14 @@ public class AlbumManager implements UploadManager.Listener, MediaUploader.Liste
         }
     }
 
+    private static void addUploadingMediaToAlbumContents(AlbumContents albumContents, List<AlbumUploadingMedia> uploadingMedia) {
+        for (AlbumUploadingMedia m : uploadingMedia) {
+            AlbumPhoto photo = new AlbumPhoto(m);
+            albumContents.getPhotos().add(photo);
+        }
+    }
+
+
     @Override
     public void refreshAlbum(long albumId) {
         Log.d("AlbumManager", "refreshAlbum: " + albumId);
@@ -486,6 +497,7 @@ public class AlbumManager implements UploadManager.Listener, MediaUploader.Liste
         }
 
         addUploadingPhotosToAlbumContents(albumContents, mUploadManager.getUploadingPhotos(albumId), mUploadManager.getUploadingOriginalPhotoIds());
+        addUploadingMediaToAlbumContents(albumContents, mMediaUploader.getUploadingMedia(albumId));
 
         for (AlbumContentsListener listener : listeners) {
             listener.onAlbumContentsNewContent(albumId, albumContents);
@@ -503,6 +515,7 @@ public class AlbumManager implements UploadManager.Listener, MediaUploader.Liste
         List<AlbumContentsListener> listeners = mAlbumContentsListeners.getAlbumContentsListeners(albumId);
         if (!listeners.isEmpty()) {
             addUploadingPhotosToAlbumContents(newAlbumContents, mUploadManager.getUploadingPhotos(albumId), mUploadManager.getUploadingOriginalPhotoIds());
+            addUploadingMediaToAlbumContents(newAlbumContents, mMediaUploader.getUploadingMedia(albumId));
         }
 
         for (AlbumContentsListener listener : listeners) {
