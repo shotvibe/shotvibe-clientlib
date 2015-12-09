@@ -8,6 +8,7 @@ public interface MediaUploader {
     void setListener(Listener listener);
 
     public interface Listener {
-        void onMediaUploadChanged(long albumId);
+        void onMediaUploadProgress(long albumId);
+        void onMediaUploadObjectsChanged(long albumId);
     }
 }

@@ -32,7 +32,12 @@ public class AlbumUploadingMedia {
         return mProgress;
     }
 
+    public void setProgress(float progress) {
+        mProgress = progress;
+    }
+
     private final MediaType mMediaType;
     private final AlbumUploadingVideo mVideo;
-    private final float mProgress;
+
+    private float mProgress;
 }

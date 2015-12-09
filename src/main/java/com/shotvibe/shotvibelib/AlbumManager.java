@@ -516,7 +516,12 @@ public class AlbumManager implements UploadManager.Listener, MediaUploader.Liste
     }
 
     @Override
-    public void onMediaUploadChanged(long albumId) {
+    public void onMediaUploadProgress(long albumId) {
+        // TODO ...
+    }
+
+    @Override
+    public void onMediaUploadObjectsChanged(long albumId) {
         // TODO ...
     }
 
