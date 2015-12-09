@@ -8,6 +8,7 @@ public class AlbumPhoto {
 
         mServerPhoto = photo;
         mUploadingPhoto = null;
+        mUploadingMedia = null;
     }
 
     public AlbumPhoto(AlbumUploadingPhoto uploadingPhoto) {
@@ -17,6 +18,17 @@ public class AlbumPhoto {
 
         mUploadingPhoto = uploadingPhoto;
         mServerPhoto = null;
+        mUploadingMedia = null;
+    }
+
+    public AlbumPhoto(AlbumUploadingMedia uploadingMedia) {
+        if (uploadingMedia == null) {
+            throw new IllegalArgumentException("uploadingMedia cannot be null");
+        }
+
+        mUploadingMedia = uploadingMedia;
+        mServerPhoto = null;
+        mUploadingPhoto = null;
     }
 
     public AlbumServerPhoto getServerPhoto() {
@@ -25,6 +37,10 @@ public class AlbumPhoto {
 
     public AlbumUploadingPhoto getUploadingPhoto() {
         return mUploadingPhoto;
+    }
+
+    public AlbumUploadingMedia getUploadingMedia() {
+        return mUploadingMedia;
     }
 
     public String getAuthorNickname() {
@@ -38,4 +54,5 @@ public class AlbumPhoto {
 
     private final AlbumServerPhoto mServerPhoto;
     private final AlbumUploadingPhoto mUploadingPhoto;
+    private final AlbumUploadingMedia mUploadingMedia;
 }
