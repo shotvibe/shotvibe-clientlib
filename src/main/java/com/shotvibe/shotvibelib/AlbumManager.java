@@ -530,7 +530,9 @@ public class AlbumManager implements UploadManager.Listener, MediaUploader.Liste
 
     @Override
     public void onMediaUploadProgress(long albumId) {
-        // TODO ...
+        for (AlbumContentsListener listener : mAlbumContentsListeners.getAlbumContentsListeners(albumId)) {
+            listener.onAlbumContentsUploadsProgressed(albumId);
+        }
     }
 
     @Override
