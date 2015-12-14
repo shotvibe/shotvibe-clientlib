@@ -89,7 +89,7 @@ static inline NSNumber * toNumber(id value)
 
 - (BOOL)hasWithNSString:(NSString *)key
 {
-    return [self getValue:key] != nil;
+    return [dict_ objectForKey:key] != nil;
 }
 
 
