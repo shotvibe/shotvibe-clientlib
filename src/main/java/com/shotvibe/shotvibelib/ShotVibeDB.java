@@ -170,6 +170,7 @@ public final class ShotVibeDB {
                 albumServerPhotoParams.id = photoId;
                 albumServerPhotoParams.mediaType = mediaType;
                 albumServerPhotoParams.video = video;
+                albumServerPhotoParams.clientUploadId = null;
                 albumServerPhotoParams.url = photoUrl;
                 albumServerPhotoParams.author = photoAuthor;
                 albumServerPhotoParams.dateAdded = photoDateAdded;
@@ -356,6 +357,7 @@ public final class ShotVibeDB {
                     albumServerPhotoParams.id = photoId;
                     albumServerPhotoParams.mediaType = mediaType;
                     albumServerPhotoParams.video = video;
+                    albumServerPhotoParams.clientUploadId = null;
                     albumServerPhotoParams.url = photoUrl;
                     albumServerPhotoParams.author = photoAuthor;
                     albumServerPhotoParams.dateAdded = photoDateAdded;

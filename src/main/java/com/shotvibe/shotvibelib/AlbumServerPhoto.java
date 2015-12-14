@@ -5,6 +5,7 @@ public class AlbumServerPhoto {
         public String id;
         public MediaType mediaType;
         public AlbumServerVideo video;
+        public String clientUploadId;
         public String url;
         public AlbumUser author;
         public DateTime dateAdded;
@@ -49,6 +50,7 @@ public class AlbumServerPhoto {
         mId = params.id;
         mMediaType = params.mediaType;
         mVideo = params.video;
+        mClientUploadId = params.clientUploadId;
         mUrl = params.url;
         mAuthor = params.author;
         mDateAdded = params.dateAdded;
@@ -66,6 +68,11 @@ public class AlbumServerPhoto {
 
     public MediaType getMediaType() {
         return mMediaType;
+    }
+
+    // May return null
+    public String getClientUploadId() {
+        return mClientUploadId;
     }
 
     public AlbumServerVideo getVideo() {
@@ -123,6 +130,9 @@ public class AlbumServerPhoto {
     private final String mId;
 
     private final MediaType mMediaType;
+
+    // May be null
+    private final String mClientUploadId;
 
     private final AlbumServerVideo mVideo;
 
