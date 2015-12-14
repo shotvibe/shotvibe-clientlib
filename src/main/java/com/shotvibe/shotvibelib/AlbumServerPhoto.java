@@ -1,48 +1,61 @@
 package com.shotvibe.shotvibelib;
 
 public class AlbumServerPhoto {
-    public AlbumServerPhoto(String id, MediaType mediaType, AlbumServerVideo video, String url, AlbumUser author, DateTime dateAdded, ArrayList<AlbumPhotoComment> comments, int globalGlanceScore, int myGlanceScoreDelta, ArrayList<AlbumPhotoGlance> glances) {
-        if (id == null) {
+    public static class Params {
+        public String id;
+        public MediaType mediaType;
+        public AlbumServerVideo video;
+        public String url;
+        public AlbumUser author;
+        public DateTime dateAdded;
+        public ArrayList<AlbumPhotoComment> comments;
+        public int globalGlanceScore;
+        public int myGlanceScoreDelta;
+        public ArrayList<AlbumPhotoGlance> glances;
+    }
+
+    public AlbumServerPhoto(Params params) {
+        if (params.id == null) {
             throw new IllegalArgumentException("id cannot be null");
         }
-        if (mediaType == null) {
+        if (params.mediaType == null) {
             throw new IllegalArgumentException("mediaType cannot be null");
         }
-        if (mediaType == MediaType.VIDEO) {
-            if (video == null) {
+        if (params.mediaType == MediaType.VIDEO) {
+            if (params.video == null) {
                 throw new IllegalArgumentException("video cannot be null when mediaType is MediaType.VIDEO");
             }
         } else {
-            if (video != null) {
+            if (params.video != null) {
                 throw new IllegalArgumentException("video must be null when mediaType is not MediaType.VIDEO");
             }
         }
-        if (url == null) {
+        if (params.url == null) {
             throw new IllegalArgumentException("url cannot be null");
         }
-        if (author == null) {
+        if (params.author == null) {
             throw new IllegalArgumentException("author cannot be null");
         }
-        if (dateAdded == null) {
+        if (params.dateAdded == null) {
             throw new IllegalArgumentException("dateAdded cannot be null");
         }
-        if (comments == null) {
+        if (params.comments == null) {
             throw new IllegalArgumentException("comments cannot be null");
         }
-        if (glances == null) {
+        if (params.glances == null) {
             throw new IllegalArgumentException("glances cannot be null");
         }
 
-        mId = id;
-        mMediaType = mediaType;
-        mVideo = video;
-        mUrl = url;
-        mAuthor = author;
-        mDateAdded = dateAdded;
-        mComments = comments;
-        mGlobalGlanceScore = globalGlanceScore;
-        mMyGlanceScoreDelta = myGlanceScoreDelta;
-        mGlances = glances;
+        mId = params.id;
+        mMediaType = params.mediaType;
+        mVideo = params.video;
+        mUrl = params.url;
+        mAuthor = params.author;
+        mDateAdded = params.dateAdded;
+        mComments = params.comments;
+        mGlobalGlanceScore = params.globalGlanceScore;
+        mMyGlanceScoreDelta = params.myGlanceScoreDelta;
+        mGlances = params.glances;
 
         mUploadingOriginal = false;
     }

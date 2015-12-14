@@ -586,7 +586,18 @@ public class ShotVibeAPI {
                 comments.add(new AlbumPhotoComment(commentAuthor, clientMsgId, dateCreated, commentText));
             }
 
-            result.add(new AlbumPhoto(new AlbumServerPhoto(photo_id, mediaType, video, photo_url, author, photo_date_created, comments, globalGlanceScore, myGlanceScoreDelta, glances)));
+            AlbumServerPhoto.Params albumServerPhotoParams = new AlbumServerPhoto.Params();
+            albumServerPhotoParams.id = photo_id;
+            albumServerPhotoParams.mediaType = mediaType;
+            albumServerPhotoParams.video = video;
+            albumServerPhotoParams.url = photo_url;
+            albumServerPhotoParams.author = author;
+            albumServerPhotoParams.dateAdded = photo_date_created;
+            albumServerPhotoParams.comments = comments;
+            albumServerPhotoParams.globalGlanceScore = globalGlanceScore;
+            albumServerPhotoParams.myGlanceScoreDelta = myGlanceScoreDelta;
+            albumServerPhotoParams.glances = glances;
+            result.add(new AlbumPhoto(new AlbumServerPhoto(albumServerPhotoParams)));
         }
         return result;
     }
