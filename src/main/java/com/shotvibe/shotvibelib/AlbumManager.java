@@ -3,8 +3,8 @@ package com.shotvibe.shotvibelib;
 import java.util.List;
 import java.util.Map;
 
-public class AlbumManager implements UploadManager.Listener {
-    public AlbumManager(ShotVibeAPI shotVibeAPI, ShotVibeDB shotVibeDB, PhotoDownloadManager photoDownloadManager, UploadManager uploadManager) {
+public class AlbumManager implements UploadManager.Listener, MediaUploader.Listener {
+    public AlbumManager(ShotVibeAPI shotVibeAPI, ShotVibeDB shotVibeDB, PhotoDownloadManager photoDownloadManager, UploadManager uploadManager, MediaUploader mediaUploader) {
         if (shotVibeAPI == null) {
             throw new IllegalArgumentException("shotVibeAPI cannot be null");
         }
@@ -14,12 +14,17 @@ public class AlbumManager implements UploadManager.Listener {
         if (uploadManager == null) {
             throw new IllegalArgumentException("uploadManager cannot be null");
         }
+        if (mediaUploader == null) {
+            throw new IllegalArgumentException("mediaUploader cannot be null");
+        }
         mShotVibeAPI = shotVibeAPI;
         mShotVibeDB = shotVibeDB;
         mPhotoDownloadManager = photoDownloadManager;
         mUploadManager = uploadManager;
+        mMediaUploader = mediaUploader;
 
         mUploadManager.setListener(this);
+        mMediaUploader.setListener(this);
 
         mExecutor = ThreadUtil.createSingleThreadExecutor();
         mAlbumListListeners = new ArrayList<AlbumListListener>();
@@ -156,6 +161,7 @@ public class AlbumManager implements UploadManager.Listener {
         if (cachedAlbumContents != null) {
             // Add the Uploading photos to the end of album:
             addUploadingPhotosToAlbumContents(cachedAlbumContents, mUploadManager.getUploadingPhotos(albumId), mUploadManager.getUploadingOriginalPhotoIds());
+            addUploadingMediaToAlbumContents(cachedAlbumContents, mMediaUploader.getUploadingMedia(albumId));
         }
 
         return cachedAlbumContents;
@@ -324,6 +330,7 @@ public class AlbumManager implements UploadManager.Listener {
                     List<AlbumContentsListener> listeners = mAlbumContentsListeners.getAlbumContentsListeners(mAlbumId);
                     if (result.albumContents != null && !listeners.isEmpty()) {
                         addUploadingPhotosToAlbumContents(result.albumContents, mUploadManager.getUploadingPhotos(mAlbumId), mUploadManager.getUploadingOriginalPhotoIds());
+                        addUploadingMediaToAlbumContents(result.albumContents, mMediaUploader.getUploadingMedia(mAlbumId));
                     }
 
                     for (AlbumContentsListener listener : listeners) {
@@ -393,6 +400,7 @@ public class AlbumManager implements UploadManager.Listener {
                 throw new RuntimeException(e);
             }
             addUploadingPhotosToAlbumContents(albumContents, mUploadManager.getUploadingPhotos(albumId), mUploadManager.getUploadingOriginalPhotoIds());
+            addUploadingMediaToAlbumContents(albumContents, mMediaUploader.getUploadingMedia(albumId));
 
             for (AlbumContentsListener listener : listeners) {
                 listener.onAlbumContentsNewContent(albumId, albumContents);
@@ -453,6 +461,14 @@ public class AlbumManager implements UploadManager.Listener {
         }
     }
 
+    private static void addUploadingMediaToAlbumContents(AlbumContents albumContents, List<AlbumUploadingMedia> uploadingMedia) {
+        for (AlbumUploadingMedia m : uploadingMedia) {
+            AlbumPhoto photo = new AlbumPhoto(m);
+            albumContents.getPhotos().add(photo);
+        }
+    }
+
+
     @Override
     public void refreshAlbum(long albumId) {
         Log.d("AlbumManager", "refreshAlbum: " + albumId);
@@ -481,6 +497,7 @@ public class AlbumManager implements UploadManager.Listener {
         }
 
         addUploadingPhotosToAlbumContents(albumContents, mUploadManager.getUploadingPhotos(albumId), mUploadManager.getUploadingOriginalPhotoIds());
+        addUploadingMediaToAlbumContents(albumContents, mMediaUploader.getUploadingMedia(albumId));
 
         for (AlbumContentsListener listener : listeners) {
             listener.onAlbumContentsNewContent(albumId, albumContents);
@@ -498,6 +515,7 @@ public class AlbumManager implements UploadManager.Listener {
         List<AlbumContentsListener> listeners = mAlbumContentsListeners.getAlbumContentsListeners(albumId);
         if (!listeners.isEmpty()) {
             addUploadingPhotosToAlbumContents(newAlbumContents, mUploadManager.getUploadingPhotos(albumId), mUploadManager.getUploadingOriginalPhotoIds());
+            addUploadingMediaToAlbumContents(newAlbumContents, mMediaUploader.getUploadingMedia(albumId));
         }
 
         for (AlbumContentsListener listener : listeners) {
@@ -508,6 +526,36 @@ public class AlbumManager implements UploadManager.Listener {
         // that was returned from the upload arrived after a requested refresh that was sent earlier
         // arrived
         refreshAlbumContents(albumId, false);
+    }
+
+    @Override
+    public void onMediaUploadProgress(long albumId) {
+        for (AlbumContentsListener listener : mAlbumContentsListeners.getAlbumContentsListeners(albumId)) {
+            listener.onAlbumContentsUploadsProgressed(albumId);
+        }
+    }
+
+    @Override
+    public void onMediaUploadObjectsChanged(long albumId) {
+        List<AlbumContentsListener> listeners = mAlbumContentsListeners.getAlbumContentsListeners(albumId);
+
+        if (listeners.isEmpty()) {
+            return;
+        }
+
+        AlbumContents albumContents;
+        try {
+            albumContents = mShotVibeDB.getAlbumContents(albumId);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        addUploadingPhotosToAlbumContents(albumContents, mUploadManager.getUploadingPhotos(albumId), mUploadManager.getUploadingOriginalPhotoIds());
+        addUploadingMediaToAlbumContents(albumContents, mMediaUploader.getUploadingMedia(albumId));
+
+        for (AlbumContentsListener listener : listeners) {
+            listener.onAlbumContentsNewContent(albumId, albumContents);
+        }
     }
 
     private static <T> boolean listContainsListener(ArrayList<T> list, T listener) {
@@ -534,6 +582,7 @@ public class AlbumManager implements UploadManager.Listener {
     private final ShotVibeDB mShotVibeDB;
     private final PhotoDownloadManager mPhotoDownloadManager;
     private final UploadManager mUploadManager;
+    private final MediaUploader mMediaUploader;
     private final ThreadUtil.Executor mExecutor;
 
     // All of the following must only be touched on the main thread:
