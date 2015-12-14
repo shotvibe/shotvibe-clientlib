@@ -556,6 +556,11 @@ public class ShotVibeAPI {
                 video = new AlbumServerVideo(status, videoUrl, videoThumbnailUrl, videoDuration);
             }
 
+            String clientUploadId = null;
+            if (photo_obj.has("client_upload_id")) {
+                clientUploadId = photo_obj.getString("client_upload_id");
+            }
+
             String photo_url = photo_obj.getString("photo_url");
             DateTime photo_date_created = parseDate(photo_obj, "date_created");
 
@@ -590,6 +595,7 @@ public class ShotVibeAPI {
             albumServerPhotoParams.id = photo_id;
             albumServerPhotoParams.mediaType = mediaType;
             albumServerPhotoParams.video = video;
+            albumServerPhotoParams.clientUploadId = clientUploadId;
             albumServerPhotoParams.url = photo_url;
             albumServerPhotoParams.author = author;
             albumServerPhotoParams.dateAdded = photo_date_created;
