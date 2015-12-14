@@ -166,7 +166,18 @@ public final class ShotVibeDB {
                 MediaType mediaType = MediaType.PHOTO;
                 AlbumServerVideo video = null;
 
-                results.add(new AlbumPhoto(new AlbumServerPhoto(photoId, mediaType, video, photoUrl, photoAuthor, photoDateAdded, emptyComments, globalGlanceScore, myGlanceScoreDelta, dummy)));
+                AlbumServerPhoto.Params albumServerPhotoParams = new AlbumServerPhoto.Params();
+                albumServerPhotoParams.id = photoId;
+                albumServerPhotoParams.mediaType = mediaType;
+                albumServerPhotoParams.video = video;
+                albumServerPhotoParams.url = photoUrl;
+                albumServerPhotoParams.author = photoAuthor;
+                albumServerPhotoParams.dateAdded = photoDateAdded;
+                albumServerPhotoParams.comments = emptyComments;
+                albumServerPhotoParams.globalGlanceScore = globalGlanceScore;
+                albumServerPhotoParams.myGlanceScoreDelta = myGlanceScoreDelta;
+                albumServerPhotoParams.glances = dummy;
+                results.add(new AlbumPhoto(new AlbumServerPhoto(albumServerPhotoParams)));
             }
             return results;
         } finally {
@@ -341,7 +352,18 @@ public final class ShotVibeDB {
                     MediaType mediaType = MediaType.PHOTO;
                     AlbumServerVideo video = null;
 
-                    albumPhotos.add(new AlbumPhoto(new AlbumServerPhoto(photoId, mediaType, video, photoUrl, photoAuthor, photoDateAdded, photoComments, globalGlanceScore, myGlanceScoreDelta, photoGlances)));
+                    AlbumServerPhoto.Params albumServerPhotoParams = new AlbumServerPhoto.Params();
+                    albumServerPhotoParams.id = photoId;
+                    albumServerPhotoParams.mediaType = mediaType;
+                    albumServerPhotoParams.video = video;
+                    albumServerPhotoParams.url = photoUrl;
+                    albumServerPhotoParams.author = photoAuthor;
+                    albumServerPhotoParams.dateAdded = photoDateAdded;
+                    albumServerPhotoParams.comments = photoComments;
+                    albumServerPhotoParams.globalGlanceScore = globalGlanceScore;
+                    albumServerPhotoParams.myGlanceScoreDelta = myGlanceScoreDelta;
+                    albumServerPhotoParams.glances = photoGlances;
+                    albumPhotos.add(new AlbumPhoto(new AlbumServerPhoto(albumServerPhotoParams)));
                 }
             } finally {
                 cursor.close();
