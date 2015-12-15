@@ -420,6 +420,24 @@ public class AlbumManager implements UploadManager.Listener, MediaUploader.Liste
 
         // Bail out early if there are no uploadingPhotos
         if (uploadingPhotos.size() == 0) {
+            // TODO This is temporary
+            // This adds a hard-coded uploading photo and video, for testing
+            {
+                MediaType mediaType = MediaType.VIDEO;
+                AlbumUploadingVideo uploadingVideo = new AlbumUploadingVideo("dummyVideo.mp4");
+                float progress = 0.75f;
+                AlbumPhoto testUploadingVideo = new AlbumPhoto(new AlbumUploadingMedia(mediaType, uploadingVideo, null, progress));
+                albumContents.getPhotos().add(testUploadingVideo);
+            }
+
+            {
+                MediaType mediaType = MediaType.PHOTO;
+                AlbumUploadingMediaPhoto uploadingPhoto = new AlbumUploadingMediaPhoto("dummyPhoto.jpg");
+                float progress = 0.3f;
+                AlbumPhoto testUploadingPhoto = new AlbumPhoto(new AlbumUploadingMedia(mediaType, null, uploadingPhoto, progress));
+                albumContents.getPhotos().add(testUploadingPhoto);
+            }
+
             return;
         }
 
