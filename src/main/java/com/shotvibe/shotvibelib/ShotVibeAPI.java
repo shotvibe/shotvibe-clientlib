@@ -591,6 +591,13 @@ public class ShotVibeAPI {
                 comments.add(new AlbumPhotoComment(commentAuthor, clientMsgId, dateCreated, commentText));
             }
 
+            // Skip photos that are in "processing" state
+            if (mediaType == MediaType.VIDEO) {
+                if (video.getStatus() == AlbumServerVideo.Status.PROCESSING) {
+                    continue;
+                }
+            }
+
             AlbumServerPhoto.Params albumServerPhotoParams = new AlbumServerPhoto.Params();
             albumServerPhotoParams.id = photo_id;
             albumServerPhotoParams.mediaType = mediaType;
