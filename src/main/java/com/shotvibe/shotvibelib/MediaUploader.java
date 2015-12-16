@@ -11,4 +11,6 @@ public interface MediaUploader {
         void onMediaUploadProgress(long albumId);
         void onMediaUploadObjectsChanged(long albumId);
     }
+
+    void cleanCompletedUploads(ArrayList<AlbumPhoto> photos);
 }

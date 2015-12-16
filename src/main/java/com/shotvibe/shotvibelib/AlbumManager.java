@@ -327,6 +327,10 @@ public class AlbumManager implements UploadManager.Listener, MediaUploader.Liste
             ThreadUtil.runInMainThread(new ThreadUtil.Runnable() {
                 @Override
                 public void run() {
+                    if (result.albumContents != null) {
+                        mMediaUploader.cleanCompletedUploads(result.albumContents.getPhotos());
+                    }
+
                     List<AlbumContentsListener> listeners = mAlbumContentsListeners.getAlbumContentsListeners(mAlbumId);
                     if (result.albumContents != null && !listeners.isEmpty()) {
                         addUploadingPhotosToAlbumContents(result.albumContents, mUploadManager.getUploadingPhotos(mAlbumId), mUploadManager.getUploadingOriginalPhotoIds());
