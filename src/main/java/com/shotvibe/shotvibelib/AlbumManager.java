@@ -438,6 +438,14 @@ public class AlbumManager implements UploadManager.Listener, MediaUploader.Liste
                 albumContents.getPhotos().add(testUploadingPhoto);
             }
 
+            {
+                MediaType mediaType = MediaType.VIDEO;
+                AlbumUploadingVideo uploadingVideo = new AlbumUploadingVideo("dummyVideo2.mp4");
+                float progress = 1.0f;
+                AlbumPhoto testUploadingVideo = new AlbumPhoto(new AlbumUploadingMedia(mediaType, uploadingVideo, null, progress));
+                albumContents.getPhotos().add(testUploadingVideo);
+            }
+
             return;
         }
 
