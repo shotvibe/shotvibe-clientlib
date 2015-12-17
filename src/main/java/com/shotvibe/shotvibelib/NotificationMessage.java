@@ -9,6 +9,7 @@ public abstract class NotificationMessage {
         void Handle(NotificationMessage.AddedToAlbum msg);
         void Handle(NotificationMessage.PhotoComment msg);
         void Handle(NotificationMessage.PhotoGlanceScoreDelta msg);
+        void Handle(NotificationMessage.UserGlanceScoreUpdate msg);
         void Handle(NotificationMessage.PhotoGlance msg);
     }
 
@@ -42,6 +43,8 @@ public abstract class NotificationMessage {
                 return PhotoComment.parse(msg);
             } else if (type.equals("photo_glance_score_delta")) {
                 return PhotoGlanceScoreDelta.parse(msg);
+            } else if (type.equals("user_glance_score_update")) {
+                return UserGlanceScoreUpdate.parse(msg);
             } else if (type.equals("photo_glance")) {
                 return PhotoGlance.parse(msg);
             } else {
@@ -311,6 +314,29 @@ public abstract class NotificationMessage {
         private final String mGlanceAuthorNickname;
         private final String mGlanceAuthorAvatarUrl;
         private final int mScoreDelta;
+
+        @Override
+        public void handle(NotificationHandler handler) {
+            handler.Handle(this);
+        }
+    }
+
+    public static final class UserGlanceScoreUpdate extends NotificationMessage {
+        public static UserGlanceScoreUpdate parse(JSONObject msg) throws ParseException, JSONException {
+            int userGlanceScore = msg.getInt("user_glance_score");
+
+            return new UserGlanceScoreUpdate(userGlanceScore);
+        }
+
+        private UserGlanceScoreUpdate(int userGlanceScore) {
+            mUserGlanceScore = userGlanceScore;
+        }
+
+        public int getUserGlanceScore() {
+            return mUserGlanceScore;
+        }
+
+        private final int mUserGlanceScore;
 
         @Override
         public void handle(NotificationHandler handler) {
