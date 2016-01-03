@@ -3,9 +3,10 @@ package com.shotvibe.shotvibelib;
 public class AlbumUser {
     private final long mMemberId;
     private final String mMemberNickname;
+    private final DateTime mLastOnline;
     private final String mMemberAvatarUrl;
 
-    public AlbumUser(long memberId, String memberNickname, String memberAvatarUrl) {
+    public AlbumUser(long memberId, String memberNickname, DateTime lastOnline, String memberAvatarUrl) {
         if (memberNickname == null) {
             throw new IllegalArgumentException("memberNickname cannot be null");
         }
@@ -15,6 +16,7 @@ public class AlbumUser {
 
         mMemberId = memberId;
         mMemberNickname = memberNickname;
+        mLastOnline = lastOnline;
         mMemberAvatarUrl = memberAvatarUrl;
     }
 
@@ -24,6 +26,11 @@ public class AlbumUser {
 
     public String getMemberNickname() {
         return mMemberNickname;
+    }
+
+    // May return null
+    public DateTime getLastOnline() {
+        return mLastOnline;
     }
 
     public String getMemberAvatarUrl() {
