@@ -391,9 +391,10 @@ public class ShotVibeAPI {
 
                     long memberId = responseObj.getLong("id");
                     String nickname = responseObj.getString("nickname");
+                    DateTime lastOnline = parseDate(responseObj, "last_online");
                     String avatarUrl = responseObj.getString("avatar_url");
 
-                    AlbumUser user = new AlbumUser(memberId, nickname, avatarUrl);
+                    AlbumUser user = new AlbumUser(memberId, nickname, lastOnline, avatarUrl);
                     return new NetworkRequestResult<AlbumUser>(user, response);
                 } catch (JSONException e) {
                     throw APIException.FromJSONException(response, e);
@@ -514,9 +515,10 @@ public class ShotVibeAPI {
     private static AlbumUser parseAlbumUser(JSONObject userObj) throws JSONException {
         long id = userObj.getLong("id");
         String nickname = userObj.getString("nickname");
+        DateTime lastOnline = parseDate(userObj, "last_online");
         String avatarUrl = userObj.getString("avatar_url");
 
-        return new AlbumUser(id, nickname, avatarUrl);
+        return new AlbumUser(id, nickname, lastOnline, avatarUrl);
     }
 
     private ArrayList<AlbumPhoto> parsePhotoList(JSONArray photos_array) throws JSONException {
@@ -733,6 +735,7 @@ public class ShotVibeAPI {
             JSONObject member_obj = members_array.getJSONObject(i);
             long member_id = member_obj.getLong("id");
             String member_nickname = member_obj.getString("nickname");
+            DateTime memberLastOnline = parseDate(member_obj, "last_online");
             String member_avatar_url = member_obj.getString("avatar_url");
             boolean memberAlbumAdmin = member_obj.getBoolean("album_admin");
             long addedByUserId = member_obj.getLong("added_by_user_id");
@@ -748,7 +751,7 @@ public class ShotVibeAPI {
                 throw new JSONException("Invalid `invite_status` value: " + inviteStatusStr);
             }
 
-            AlbumUser user = new AlbumUser(member_id, member_nickname, member_avatar_url);
+            AlbumUser user = new AlbumUser(member_id, member_nickname, memberLastOnline, member_avatar_url);
             members.add(new AlbumMember(user, memberAlbumAdmin, addedByUserId, inviteStatus));
         }
 
