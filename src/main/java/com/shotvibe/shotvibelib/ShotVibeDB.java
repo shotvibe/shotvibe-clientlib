@@ -99,7 +99,8 @@ public final class ShotVibeDB {
                 String creatorAuthorNickname = cursor.getString(7);
                 String creatorAuthorAvatarUrl = cursor.getString(8);
                 DateTime creatorLastOnline = null;
-                AlbumUser creator = new AlbumUser(creatorAuthorUserId, creatorAuthorNickname, creatorLastOnline, creatorAuthorAvatarUrl);
+                int creatorUserGlanceScore = 0; // TODO Read from DB
+                AlbumUser creator = new AlbumUser(creatorAuthorUserId, creatorAuthorNickname, creatorLastOnline, creatorAuthorAvatarUrl, creatorUserGlanceScore);
 
                 AlbumSummary album = new AlbumSummary(id, etag, name, creator, dateCreated, lastUpdated, numNewPhotos, lastAccess, latestPhotos);
                 results.add(album);
@@ -154,7 +155,8 @@ public final class ShotVibeDB {
                 String photoAuthorNickname = cursor.getString(4);
                 String photoAuthorAvatarUrl = cursor.getString(5);
                 DateTime photoAuthorLastOnline = null;
-                AlbumUser photoAuthor = new AlbumUser(photoAuthorUserId, photoAuthorNickname, photoAuthorLastOnline, photoAuthorAvatarUrl);
+                int photoAuthorUserGlanceScore = 0; // TODO Read from DB
+                AlbumUser photoAuthor = new AlbumUser(photoAuthorUserId, photoAuthorNickname, photoAuthorLastOnline, photoAuthorAvatarUrl, photoAuthorUserGlanceScore);
 
                 // TODO Load real values from DB
                 ArrayList<AlbumPhotoGlance> dummy = new ArrayList<AlbumPhotoGlance>();
@@ -299,7 +301,8 @@ public final class ShotVibeDB {
                 String creatorAuthorNickname = cursor.getString(6);
                 String creatorAuthorAvatarUrl = cursor.getString(7);
                 DateTime creatorLastOnline = null;
-                albumCreator = new AlbumUser(creatorAuthorUserId, creatorAuthorNickname, creatorLastOnline, creatorAuthorAvatarUrl);
+                int creatorUserGlanceScore = 0; // TODO Read from DB
+                albumCreator = new AlbumUser(creatorAuthorUserId, creatorAuthorNickname, creatorLastOnline, creatorAuthorAvatarUrl, creatorUserGlanceScore);
             } finally {
                 cursor.close();
             }
@@ -324,7 +327,8 @@ public final class ShotVibeDB {
                     String photoAuthorNickname = cursor.getString(4);
                     String photoAuthorAvatarUrl = cursor.getString(5);
                     DateTime photoAuthorLastOnline = null;
-                    AlbumUser photoAuthor = new AlbumUser(photoAuthorUserId, photoAuthorNickname, photoAuthorLastOnline, photoAuthorAvatarUrl);
+                    int photoAuthorUserGlanceScore = 0; // TODO Read from DB
+                    AlbumUser photoAuthor = new AlbumUser(photoAuthorUserId, photoAuthorNickname, photoAuthorLastOnline, photoAuthorAvatarUrl, photoAuthorUserGlanceScore);
 
                     ArrayList<AlbumPhotoGlance> photoGlances = new ArrayList<AlbumPhotoGlance>();
                     SQLCursor gCursor = mConn.query(""
@@ -343,7 +347,8 @@ public final class ShotVibeDB {
                             String authorAvatarUrl = gCursor.getString(2);
                             String emoticonName = gCursor.getString(3);
                             DateTime authorLastOnline = null;
-                            AlbumUser author = new AlbumUser(authorId, authorNickname, authorLastOnline, authorAvatarUrl);
+                            int userGlanceScore = 0; // TODO Read from DB
+                            AlbumUser author = new AlbumUser(authorId, authorNickname, authorLastOnline, authorAvatarUrl, userGlanceScore);
                             photoGlances.add(new AlbumPhotoGlance(author, emoticonName));
                         }
                     } finally {
@@ -395,7 +400,8 @@ public final class ShotVibeDB {
                     boolean albumAdmin = cursor.getInt(3) != 0;
                     long addedByUserId = cursor.getLong(4);
                     DateTime lastOnline = null;
-                    AlbumUser user = new AlbumUser(memberId, memberNickname, lastOnline, memberAvatarUrl);
+                    int userGlanceScore = 0; // TODO Read from DB
+                    AlbumUser user = new AlbumUser(memberId, memberNickname, lastOnline, memberAvatarUrl, userGlanceScore);
                     albumMembers.add(new AlbumMember(user, albumAdmin, addedByUserId, null));
                 }
             } finally {
@@ -429,7 +435,8 @@ public final class ShotVibeDB {
                 long clientMsgId = cursor.getLong(4);
                 String commentText = cursor.getString(5);
                 DateTime lastOnline = null;
-                AlbumUser author = new AlbumUser(authorId, authorNickname, lastOnline, authorAvatarUrl);
+                int userGlanceScore = 0; // TODO Read from DB
+                AlbumUser author = new AlbumUser(authorId, authorNickname, lastOnline, authorAvatarUrl, userGlanceScore);
                 photoComments.add(new AlbumPhotoComment(author, clientMsgId, dateCreated, commentText));
             }
         } finally {
