@@ -5,7 +5,7 @@ import java.util.Map;
 
 public final class ShotVibeDB {
     private static final String DATABASE_FILENAME = "shotvibe_main.db";
-    private static final int DATABASE_VERSION = 9;
+    private static final int DATABASE_VERSION = 10;
 
     public static class Recipe extends SQLDatabaseRecipe<ShotVibeDB> {
         public Recipe() {
@@ -76,7 +76,7 @@ public final class ShotVibeDB {
 
     public synchronized ArrayList<AlbumSummary> getAlbumList() throws SQLException {
         SQLCursor cursor = mConn.query(""
-                + "SELECT album_id, name, date_created, last_updated, num_new_photos, last_access, user.user_id, user.nickname, user.avatar_url"
+                + "SELECT album_id, name, date_created, last_updated, num_new_photos, last_access, user.user_id, user.nickname, user.avatar_url, user.user_glance_score"
                 + " FROM album"
                 + " LEFT OUTER JOIN user"
                 + " ON album.creator_id = user.user_id"
@@ -99,7 +99,7 @@ public final class ShotVibeDB {
                 String creatorAuthorNickname = cursor.getString(7);
                 String creatorAuthorAvatarUrl = cursor.getString(8);
                 DateTime creatorLastOnline = null;
-                int creatorUserGlanceScore = 0; // TODO Read from DB
+                int creatorUserGlanceScore = cursor.getInt(9);
                 AlbumUser creator = new AlbumUser(creatorAuthorUserId, creatorAuthorNickname, creatorLastOnline, creatorAuthorAvatarUrl, creatorUserGlanceScore);
 
                 AlbumSummary album = new AlbumSummary(id, etag, name, creator, dateCreated, lastUpdated, numNewPhotos, lastAccess, latestPhotos);
@@ -135,7 +135,7 @@ public final class ShotVibeDB {
 
     private ArrayList<AlbumPhoto> getLatestPhotos(long albumId, int numPhotos) throws SQLException {
         SQLCursor cursor = mConn.query(""
-                + "SELECT photo.photo_id, photo.url, photo.created, user.user_id, user.nickname, user.avatar_url"
+                + "SELECT photo.photo_id, photo.url, photo.created, user.user_id, user.nickname, user.avatar_url, user.user_glance_score"
                 + " FROM photo"
                 + " LEFT OUTER JOIN user"
                 + " ON photo.author_id = user.user_id"
@@ -155,7 +155,7 @@ public final class ShotVibeDB {
                 String photoAuthorNickname = cursor.getString(4);
                 String photoAuthorAvatarUrl = cursor.getString(5);
                 DateTime photoAuthorLastOnline = null;
-                int photoAuthorUserGlanceScore = 0; // TODO Read from DB
+                int photoAuthorUserGlanceScore = cursor.getInt(6);
                 AlbumUser photoAuthor = new AlbumUser(photoAuthorUserId, photoAuthorNickname, photoAuthorLastOnline, photoAuthorAvatarUrl, photoAuthorUserGlanceScore);
 
                 // TODO Load real values from DB
@@ -268,7 +268,7 @@ public final class ShotVibeDB {
         try {
             SQLCursor cursor;
             cursor = mConn.query(""
-                    + "SELECT name, date_created, last_updated, num_new_photos, last_access, user.user_id, user.nickname, user.avatar_url"
+                    + "SELECT name, date_created, last_updated, num_new_photos, last_access, user.user_id, user.nickname, user.avatar_url, user.user_glance_score"
                     + " FROM album"
                     + " LEFT OUTER JOIN user"
                     + " ON album.creator_id = user.user_id"
@@ -301,14 +301,14 @@ public final class ShotVibeDB {
                 String creatorAuthorNickname = cursor.getString(6);
                 String creatorAuthorAvatarUrl = cursor.getString(7);
                 DateTime creatorLastOnline = null;
-                int creatorUserGlanceScore = 0; // TODO Read from DB
+                int creatorUserGlanceScore = cursor.getInt(8);
                 albumCreator = new AlbumUser(creatorAuthorUserId, creatorAuthorNickname, creatorLastOnline, creatorAuthorAvatarUrl, creatorUserGlanceScore);
             } finally {
                 cursor.close();
             }
 
             cursor = mConn.query(""
-                    + "SELECT photo.photo_id, photo.url, photo.created, user.user_id, user.nickname, user.avatar_url"
+                    + "SELECT photo.photo_id, photo.url, photo.created, user.user_id, user.nickname, user.avatar_url, user.user_glance_score"
                     + " FROM photo"
                     + " LEFT OUTER JOIN user"
                     + " ON photo.author_id = user.user_id"
@@ -327,12 +327,12 @@ public final class ShotVibeDB {
                     String photoAuthorNickname = cursor.getString(4);
                     String photoAuthorAvatarUrl = cursor.getString(5);
                     DateTime photoAuthorLastOnline = null;
-                    int photoAuthorUserGlanceScore = 0; // TODO Read from DB
+                    int photoAuthorUserGlanceScore = cursor.getInt(6);
                     AlbumUser photoAuthor = new AlbumUser(photoAuthorUserId, photoAuthorNickname, photoAuthorLastOnline, photoAuthorAvatarUrl, photoAuthorUserGlanceScore);
 
                     ArrayList<AlbumPhotoGlance> photoGlances = new ArrayList<AlbumPhotoGlance>();
                     SQLCursor gCursor = mConn.query(""
-                            + "SELECT photo_glance.author_id, user.nickname, user.avatar_url, photo_glance.emoticon_name"
+                            + "SELECT photo_glance.author_id, user.nickname, user.avatar_url, user.user_glance_score, photo_glance.emoticon_name"
                             + " FROM photo_glance"
                             + " LEFT OUTER JOIN user"
                             + " ON photo_glance.author_id = user.user_id"
@@ -345,9 +345,9 @@ public final class ShotVibeDB {
                             long authorId = gCursor.getLong(0);
                             String authorNickname = gCursor.getString(1);
                             String authorAvatarUrl = gCursor.getString(2);
-                            String emoticonName = gCursor.getString(3);
+                            int userGlanceScore = gCursor.getInt(3);
+                            String emoticonName = gCursor.getString(4);
                             DateTime authorLastOnline = null;
-                            int userGlanceScore = 0; // TODO Read from DB
                             AlbumUser author = new AlbumUser(authorId, authorNickname, authorLastOnline, authorAvatarUrl, userGlanceScore);
                             photoGlances.add(new AlbumPhotoGlance(author, emoticonName));
                         }
@@ -382,7 +382,7 @@ public final class ShotVibeDB {
             }
 
             cursor = mConn.query(""
-                    + "SELECT album_member.user_id, user.nickname, user.avatar_url, album_member.album_admin, album_member.added_by_user_id"
+                    + "SELECT album_member.user_id, user.nickname, user.avatar_url, user.user_glance_score, album_member.album_admin, album_member.added_by_user_id"
                     + " FROM album_member"
                     + " LEFT OUTER JOIN user"
                     + " ON album_member.user_id = user.user_id"
@@ -397,10 +397,10 @@ public final class ShotVibeDB {
                     long memberId = cursor.getLong(0);
                     String memberNickname = cursor.getString(1);
                     String memberAvatarUrl = cursor.getString(2);
-                    boolean albumAdmin = cursor.getInt(3) != 0;
-                    long addedByUserId = cursor.getLong(4);
+                    int userGlanceScore = cursor.getInt(3);
+                    boolean albumAdmin = cursor.getInt(4) != 0;
+                    long addedByUserId = cursor.getLong(5);
                     DateTime lastOnline = null;
-                    int userGlanceScore = 0; // TODO Read from DB
                     AlbumUser user = new AlbumUser(memberId, memberNickname, lastOnline, memberAvatarUrl, userGlanceScore);
                     albumMembers.add(new AlbumMember(user, albumAdmin, addedByUserId, null));
                 }
@@ -418,7 +418,7 @@ public final class ShotVibeDB {
     private static ArrayList<AlbumPhotoComment> readPhotoComments(SQLConnection conn, String photoId) throws SQLException {
         ArrayList<AlbumPhotoComment> photoComments = new ArrayList<AlbumPhotoComment>();
         SQLCursor cursor = conn.query(""
-                        + "SELECT photo_comment.author_id, user.nickname, user.avatar_url, photo_comment.date_created, photo_comment.client_msg_id, photo_comment.comment_text"
+                        + "SELECT photo_comment.author_id, user.nickname, user.avatar_url, user.user_glance_score, photo_comment.date_created, photo_comment.client_msg_id, photo_comment.comment_text"
                         + " FROM photo_comment"
                         + " LEFT OUTER JOIN user"
                         + " ON photo_comment.author_id = user.user_id"
@@ -431,11 +431,11 @@ public final class ShotVibeDB {
                 long authorId = cursor.getLong(0);
                 String authorNickname = cursor.getString(1);
                 String authorAvatarUrl = cursor.getString(2);
-                DateTime dateCreated = cursorGetDateTime(cursor, 3);
-                long clientMsgId = cursor.getLong(4);
-                String commentText = cursor.getString(5);
+                int userGlanceScore = cursor.getInt(3);
+                DateTime dateCreated = cursorGetDateTime(cursor, 4);
+                long clientMsgId = cursor.getLong(5);
+                String commentText = cursor.getString(6);
                 DateTime lastOnline = null;
-                int userGlanceScore = 0; // TODO Read from DB
                 AlbumUser author = new AlbumUser(authorId, authorNickname, lastOnline, authorAvatarUrl, userGlanceScore);
                 photoComments.add(new AlbumPhotoComment(author, clientMsgId, dateCreated, commentText));
             }
@@ -691,12 +691,13 @@ public final class ShotVibeDB {
 
     private static void saveUserToDB(SQLConnection conn, AlbumUser user) throws SQLException {
         conn.update(""
-                        + "INSERT OR REPLACE INTO user (user_id, nickname, avatar_url)"
-                        + " VALUES (?, ?, ?)",
+                        + "INSERT OR REPLACE INTO user (user_id, nickname, avatar_url, user_glance_score)"
+                        + " VALUES (?, ?, ?, ?)",
                 SQLValues.create()
                         .add(user.getMemberId())
                         .add(user.getMemberNickname())
-                        .add(user.getMemberAvatarUrl()));
+                        .add(user.getMemberAvatarUrl())
+                        .add(user.getUserGlanceScore()));
     }
 
     public synchronized void setAlbumLastAccess(long albumId, DateTime lastAccess) throws SQLException {
