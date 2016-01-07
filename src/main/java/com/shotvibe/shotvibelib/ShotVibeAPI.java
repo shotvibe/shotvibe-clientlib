@@ -1095,6 +1095,21 @@ public class ShotVibeAPI {
         });
     }
 
+    public void albumRemoveMember(final long albumId, final long userId) throws APIException {
+        runAndLogNetworkRequestAction(new NetworkRequestAction<Void>() {
+            @Override
+            public NetworkRequestResult<Void> runAction() throws APIException, HTTPException {
+                JSONObject data = new JSONObject();
+                HTTPResponse response = sendRequest("DELETE", "/albums/" + albumId + "/members/" + userId + "/", data);
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+                return new NetworkRequestResult<Void>(null, response);
+            }
+        });
+    }
+
     public void leaveAlbum(final long albumId) throws APIException {
         runAndLogNetworkRequestAction(new NetworkRequestAction<Object>() {
             @Override
