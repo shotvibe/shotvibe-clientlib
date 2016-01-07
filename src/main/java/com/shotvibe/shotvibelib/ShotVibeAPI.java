@@ -393,8 +393,9 @@ public class ShotVibeAPI {
                     String nickname = responseObj.getString("nickname");
                     DateTime lastOnline = parseDate(responseObj, "last_online");
                     String avatarUrl = responseObj.getString("avatar_url");
+                    int userGlanceScore = responseObj.getInt("user_glance_score");
 
-                    AlbumUser user = new AlbumUser(memberId, nickname, lastOnline, avatarUrl);
+                    AlbumUser user = new AlbumUser(memberId, nickname, lastOnline, avatarUrl, userGlanceScore);
                     return new NetworkRequestResult<AlbumUser>(user, response);
                 } catch (JSONException e) {
                     throw APIException.FromJSONException(response, e);
@@ -517,8 +518,9 @@ public class ShotVibeAPI {
         String nickname = userObj.getString("nickname");
         DateTime lastOnline = parseDate(userObj, "last_online");
         String avatarUrl = userObj.getString("avatar_url");
+        int userGlanceScore = userObj.getInt("user_glance_score");
 
-        return new AlbumUser(id, nickname, lastOnline, avatarUrl);
+        return new AlbumUser(id, nickname, lastOnline, avatarUrl, userGlanceScore);
     }
 
     private ArrayList<AlbumPhoto> parsePhotoList(JSONArray photos_array) throws JSONException {
@@ -737,6 +739,7 @@ public class ShotVibeAPI {
             String member_nickname = member_obj.getString("nickname");
             DateTime memberLastOnline = parseDate(member_obj, "last_online");
             String member_avatar_url = member_obj.getString("avatar_url");
+            int memberUserGlanceScore = member_obj.getInt("user_glance_score");
             boolean memberAlbumAdmin = member_obj.getBoolean("album_admin");
             long addedByUserId = member_obj.getLong("added_by_user_id");
             String inviteStatusStr = member_obj.getString("invite_status");
@@ -751,7 +754,7 @@ public class ShotVibeAPI {
                 throw new JSONException("Invalid `invite_status` value: " + inviteStatusStr);
             }
 
-            AlbumUser user = new AlbumUser(member_id, member_nickname, memberLastOnline, member_avatar_url);
+            AlbumUser user = new AlbumUser(member_id, member_nickname, memberLastOnline, member_avatar_url, memberUserGlanceScore);
             members.add(new AlbumMember(user, memberAlbumAdmin, addedByUserId, inviteStatus));
         }
 

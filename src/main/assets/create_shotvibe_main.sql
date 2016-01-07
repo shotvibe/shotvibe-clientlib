@@ -31,7 +31,10 @@ user_id INTEGER PRIMARY KEY,
 nickname TEXT NOT NULL,
 
 -- The URL of the avatar image of the user, returned from the server
-avatar_url TEXT NOT NULL
+avatar_url TEXT NOT NULL,
+
+-- The score of the user, returned from the server
+user_glance_score INTEGER NOT NULL
 );
 
 CREATE TABLE photo(
