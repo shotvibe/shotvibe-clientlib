@@ -41,6 +41,18 @@ public class AlbumManager implements UploadManager.Listener, MediaUploader.Liste
         return mShotVibeDB;
     }
 
+    public AlbumContents createNewBlankAlbum(final String albumName) throws APIException {
+        AlbumContents newAlbum = mShotVibeAPI.createNewBlankAlbum(albumName);
+
+        try {
+            mShotVibeDB.setAlbumContents(newAlbum.getId(), newAlbum);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        return newAlbum;
+    }
+
     public interface AlbumListListener {
         void onAlbumListBeginUserRefresh();
 
