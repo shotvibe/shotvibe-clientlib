@@ -56,6 +56,12 @@ author_id INTEGER REFERENCES username,
 -- The timestamp this photo was uploaded, also returned from the server
 created DATETIME NOT NULL,
 
+-- The global glance score of this photo, as returned from the server
+global_glance_score INTEGER NOT NULL,
+
+-- The score that I granted to this photo. Value can be one of: 0, -1, or 1
+my_glance_score_delta INTEGER NOT NULL,
+
 UNIQUE(photo_album, photo_id)
 );
 
