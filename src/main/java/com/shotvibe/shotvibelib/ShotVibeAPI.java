@@ -805,7 +805,15 @@ public class ShotVibeAPI {
                 }
 
                 String etagValue = response.getHeaderValue("etag");
-                if (etagValue != null) {
+                if (etagValue == null) {
+                    // This is a workaround for the fact that the server
+                    // doesn't return an ETag for newly created albums. Until
+                    // the server is fixed, this is an acceptable workaround.
+                    //
+                    // We are required to have an ETag value so that we can
+                    // save the AlbumContents in ShotVibeDB
+                    etagValue = "";
+                } else {
                     etagValue = ParseETagValue(etagValue);
                 }
 
