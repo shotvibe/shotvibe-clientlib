@@ -117,16 +117,18 @@ public abstract class NotificationMessage {
             String authorAvatarUrl = msg.getString("author_avatar_url");
             String album_name = msg.getString("album_name");
             int num_photos = msg.getInt("num_photos");
+            String photo_id = msg.getString("photo_id");
 
-            return new PhotosAdded(album_id, author_name, authorAvatarUrl, album_name, num_photos);
+            return new PhotosAdded(album_id, author_name, authorAvatarUrl, album_name, num_photos, photo_id);
         }
 
-        private PhotosAdded(long albumId, String authorName, String authorAvatarUrl, String albumName, int numPhotos) {
+        private PhotosAdded(long albumId, String authorName, String authorAvatarUrl, String albumName, int numPhoto, String photo_id) {
             mAlbumId = albumId;
             mAuthorName = authorName;
             mAuthorAvatarUrl = authorAvatarUrl;
             mAlbumName = albumName;
-            mNumPhotos = numPhotos;
+            mNumPhotos = numPhoto;
+            mPhotoId = photo_id;
         }
 
         public long getAlbumId() {
@@ -149,11 +151,16 @@ public abstract class NotificationMessage {
             return mNumPhotos;
         }
 
+        public String getPhotoId() {
+            return mPhotoId;
+        }
+
         private final long mAlbumId;
         private final String mAuthorName;
         private final String mAuthorAvatarUrl;
         private final String mAlbumName;
         private final int mNumPhotos;
+        private final String mPhotoId;
 
         @Override
         public void handle(NotificationHandler handler) {
