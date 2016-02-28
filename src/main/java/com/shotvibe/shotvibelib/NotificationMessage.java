@@ -11,6 +11,7 @@ public abstract class NotificationMessage {
         void Handle(NotificationMessage.PhotoGlanceScoreDelta msg);
         void Handle(NotificationMessage.UserGlanceScoreUpdate msg);
         void Handle(NotificationMessage.PhotoGlance msg);
+        void Handle(NotificationMessage.PhotoInPublicFeed msg);
     }
 
     public static class ParseException extends Exception {
@@ -47,6 +48,8 @@ public abstract class NotificationMessage {
                 return UserGlanceScoreUpdate.parse(msg);
             } else if (type.equals("photo_glance")) {
                 return PhotoGlance.parse(msg);
+            } else if (type.equals("photo_in_public_feed")) {
+                return PhotoInPublicFeed.parse(msg);
             } else {
                 throw new ParseException("Unknown Message type: " + type);
             }
@@ -381,6 +384,36 @@ public abstract class NotificationMessage {
         private final long mAlbumId;
         private final String mAlbumName;
         private final String mUserNickname;
+
+        @Override
+        public void handle(NotificationHandler handler) {
+            handler.Handle(this);
+        }
+    }
+
+    public static final class PhotoInPublicFeed extends NotificationMessage {
+        public static PhotoInPublicFeed parse(JSONObject msg) throws ParseException, JSONException {
+            String mediaType = msg.getString("media_type");
+            String photoId = msg.getString("photo_id");
+
+            return new PhotoInPublicFeed(mediaType, photoId);
+        }
+
+        private PhotoInPublicFeed(String mediaType, String photoId) {
+            mMediaType = mediaType;
+            mPhotoId = photoId;
+        }
+
+        public String getMediaType() {
+            return mMediaType;
+        }
+
+        public String getPhotoId() {
+            return mPhotoId;
+        }
+
+        private final String mMediaType;
+        private final String mPhotoId;
 
         @Override
         public void handle(NotificationHandler handler) {
