@@ -9,6 +9,8 @@ public interface UploadManager {
 
     void uploadPhotos(long albumId, List<PhotoUploadRequest> photoUploadRequests);
 
+//    void uploadYouTube(long albumId, String youtube_id);
+
     /**
      * UploadManager may have a single listener. All listener events are sent on the main thread
      * @param listener may be null to remove

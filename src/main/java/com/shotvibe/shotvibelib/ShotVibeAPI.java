@@ -1,11 +1,12 @@
 package com.shotvibe.shotvibelib;
 
+
 import java.util.List;
 import java.util.Map;
 
 public class ShotVibeAPI {
     public static final boolean useStagingServer = false;
-    public static final String BASE_URL = useStagingServer ? "https://staging-api.shotvibe.com" : "https://api.shotvibe.com";
+    public static final String BASE_URL = useStagingServer ? "http://ec2-54-210-55-42.compute-1.amazonaws.com:3000/api" : "https://api.shotvibe.com";
     public static final String BASE_UPLOAD_URL = useStagingServer ? "https://staging-upload.shotvibe.com" : "https://upload.shotvibe.com";
     // TODO: BASE_UPLOAD_URL is temporary, until we use the urls returned by the server on a "POST /photos/upload_request"
 
@@ -445,6 +446,42 @@ public class ShotVibeAPI {
         });
     }
 
+
+
+    public boolean uploadYouTubePhoto(final long albumId, final String youtube_id, final String randomString) throws APIException {
+        return runAndLogNetworkRequestAction(new NetworkRequestAction<Boolean>() {
+            @Override
+            public NetworkRequestResult<Boolean> runAction() throws APIException, HTTPException {
+                JSONObject data = new JSONObject();
+
+                long authorId = mAuthData.getUserId();
+
+                data.put("client_upload_id","youtube");
+                data.put("author_id",authorId);
+                data.put("album_id",albumId);
+                data.put("status","ready");
+                data.put("youtube_id",youtube_id);
+
+
+
+
+
+
+                HTTPResponse response = sendRequest("PUT", "/youtube_upload/" + randomString+"/", data);
+
+                final int HTTP_FORBIDDEN = 403;
+                if (response.getStatusCode() == HTTP_FORBIDDEN) {
+                    return new NetworkRequestResult<Boolean>(false, response);
+                }
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+                return new NetworkRequestResult<Boolean>(true, response);
+            }
+        });
+    }
+
     public void uploadUserAvatar(final long userId, final String filePath) throws APIException {
         runAndLogNetworkRequestAction(new NetworkRequestAction<Void>() {
             @Override
@@ -528,6 +565,11 @@ public class ShotVibeAPI {
         for (int i = 0; i < photos_array.length(); ++i) {
             JSONObject photo_obj = photos_array.getJSONObject(i);
             String photo_id = photo_obj.getString("photo_id");
+            String youtube_id = null;
+
+            if(!photo_obj.isNull("youtube_id")) {
+                youtube_id = photo_obj.getString("youtube_id");
+            }
 
             String mediaTypeStr = photo_obj.getString("media_type");
             MediaType mediaType;
@@ -535,6 +577,9 @@ public class ShotVibeAPI {
                 mediaType = MediaType.PHOTO;
             } else if (mediaTypeStr == "video") {
                 mediaType = MediaType.VIDEO;
+            } else if(mediaTypeStr == "youtube"){
+                mediaType = MediaType.YOUTUBE;
+//
             } else {
                 throw new JSONException("Invalid `media_type` value: " + mediaTypeStr);
             }
@@ -614,6 +659,7 @@ public class ShotVibeAPI {
             albumServerPhotoParams.globalGlanceScore = globalGlanceScore;
             albumServerPhotoParams.myGlanceScoreDelta = myGlanceScoreDelta;
             albumServerPhotoParams.glances = glances;
+            albumServerPhotoParams.youtubeId = youtube_id;
             result.add(new AlbumPhoto(new AlbumServerPhoto(albumServerPhotoParams)));
         }
         return result;
@@ -1169,6 +1215,33 @@ public class ShotVibeAPI {
                 requestBody.put("photos", photosArray);
 
                 HTTPResponse response = sendRequest("POST", "/photos/delete/", requestBody);
+
+                if (response.isError()) {
+                    throw APIException.ErrorStatusCodeException(response);
+                }
+
+                return new NetworkRequestResult<Object>(null, response);
+            }
+        });
+    }
+
+    public void hidePhotos(final Iterable<String> photoIds) throws APIException {
+        runAndLogNetworkRequestAction(new NetworkRequestAction<Object>() {
+            @Override
+            public NetworkRequestResult<Object> runAction() throws APIException, HTTPException {
+                JSONObject requestBody = new JSONObject();
+
+                JSONArray photosArray = new JSONArray();
+
+                for (String photoId : photoIds) {
+                    JSONObject memberObj = new JSONObject();
+                    memberObj.put("photo_id", photoId);
+                    photosArray.put(memberObj);
+                }
+
+                requestBody.put("photos", photosArray);
+
+                HTTPResponse response = sendRequest("POST", "/photos/hide/", requestBody);
 
                 if (response.isError()) {
                     throw APIException.ErrorStatusCodeException(response);

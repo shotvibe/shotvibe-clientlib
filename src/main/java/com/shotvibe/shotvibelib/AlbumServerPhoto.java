@@ -13,6 +13,7 @@ public class AlbumServerPhoto {
         public int globalGlanceScore;
         public int myGlanceScoreDelta;
         public ArrayList<AlbumPhotoGlance> glances;
+        public String youtubeId;
     }
 
     public AlbumServerPhoto(Params params) {
@@ -47,6 +48,7 @@ public class AlbumServerPhoto {
             throw new IllegalArgumentException("glances cannot be null");
         }
 
+
         mId = params.id;
         mMediaType = params.mediaType;
         mVideo = params.video;
@@ -60,6 +62,8 @@ public class AlbumServerPhoto {
         mGlances = params.glances;
 
         mUploadingOriginal = false;
+
+        mYouTubeId = params.youtubeId;
     }
 
     public String getId() {
@@ -127,6 +131,8 @@ public class AlbumServerPhoto {
         return mUploadingOriginal;
     }
 
+    public String getYouTubeId(){return mYouTubeId;}
+
     private final String mId;
 
     private final MediaType mMediaType;
@@ -151,4 +157,7 @@ public class AlbumServerPhoto {
     private ArrayList<AlbumPhotoGlance> mGlances;
 
     private boolean mUploadingOriginal;
+
+    //Can be null
+    private final String mYouTubeId;
 }

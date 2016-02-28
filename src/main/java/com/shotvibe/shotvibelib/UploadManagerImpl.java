@@ -373,6 +373,22 @@ public class UploadManagerImpl implements UploadManager {
     private final ArrayList<PhotoProcessJob> mPhotoProcessJobQueue = new ArrayList<PhotoProcessJob>();
     private int mNumProcessedAndReady = 0;
 
+
+//    @Override
+//    public void uploadYouTube(long albumId, String youtube_id) {
+//
+//        if (!ThreadUtil.isMainThread()) {
+//            throw new IllegalStateException("Must be called from the Main Thread");
+//        }
+//
+//
+////        Log.d("UploadManager", "Uploading photos: " + photoUploadRequests.size());
+//
+////        startBackgroundActivity();
+//
+//
+//    }
+
     @Override
     public void uploadPhotos(final long albumId, List<PhotoUploadRequest> photoUploadRequests) {
         if (!ThreadUtil.isMainThread()) {
